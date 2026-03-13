@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const FormData = require('form-data');
-
+// image uploads
 const upload = multer({ dest: 'uploads/' });
 
 // Chatbot page
@@ -19,8 +19,9 @@ router.post('/ask', upload.single('file'), async (req, res) => {
     const userMessage = req.body.prompt;
     const file = req.file;
     const userLanguage = req.body.language ;  
+    // languages..
     console.log('User language:', userLanguage);
-    
+    console.log(userLanguage);
     const formData = new FormData();
     formData.append('prompt', userMessage);
     formData.append('language', userLanguage);
@@ -35,7 +36,8 @@ router.post('/ask', upload.single('file'), async (req, res) => {
     const response = await axios.post('http://localhost:5000/file-chat', formData, {
       headers: formData.getHeaders(),
     });
-
+    
+    // image 
     if (file) fs.unlinkSync(file.path);
     res.json({ reply: response.data.reply });
   } catch (err) {

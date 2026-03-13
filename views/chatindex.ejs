@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Krishi Community Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* --- Animations --- */
+        @keyframes fadeInScaleUp {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in-scale-up {
+            animation: fadeInScaleUp 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        .animate-slide-in-up {
+            animation: slideInUp 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        .notification-dot {
+            height: 8px;
+            width: 8px;
+            background-color: #4ade80;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .step-card,
+        .main-view {
+            display: none;
+        }
+
+        .step-card.active,
+        .main-view.active {
+            display: flex;
+        }
+
+        emoji-picker {
+            --background: #ffffff;
+            --border-color: #e5e7eb;
+            --indicator-color: #10b981;
+            --search-border-color: #d1d5db;
+        }
+
+        .language-switcher {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%236b7280%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 0.65em auto;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 text-gray-800 antialiased">
+
+    <div id="state-selection-screen" class="step-card active items-center justify-center h-screen p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center border border-gray-200 animate-fade-in-scale-up">
+            <h1 class="text-3xl font-bold mb-2 text-green-600" data-translate-key="welcome">Welcome, Farmer!</h1>
+            <p class="text-gray-500 mb-4" data-translate-key="selectState">Select your State</p>
+            <div class="mb-4">
+                <select id="language-switcher-onboarding" class="language-switcher w-full bg-gray-100 border-2 border-gray-300 text-gray-700 font-semibold py-2 px-3 rounded-lg cursor-pointer focus:outline-none focus:border-green-500 transition pr-8">
+                    <option value="en">English</option>
+                    <option value="mr">मराठी</option>
+                    <option value="hi">हिन्दी</option>
+                    <option value="ml">മലയാളം</option>
+                </select>
+            </div>
+            <div id="state-list" class="max-h-60 overflow-y-auto border border-gray-200 rounded-lg custom-scrollbar"></div>
+        </div>
+    </div>
+
+    <div id="city-selection-screen" class="step-card items-center justify-center h-screen p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center border border-gray-200 animate-fade-in-scale-up">
+            <h1 class="text-2xl font-bold mb-2 text-green-600" data-translate-key="selectCity">Select City</h1>
+            <p class="text-gray-500 mb-6" data-translate-key="chooseCity">Now, choose your city</p>
+            <div id="city-list" class="max-h-60 overflow-y-auto border border-gray-200 rounded-lg custom-scrollbar"></div>
+            <button type="button" id="back-to-states" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg mt-4 transition duration-300" data-translate-key="backToStates">Back to States</button>
+        </div>
+    </div>
+
+    <div id="crop-selection-screen" class="step-card items-center justify-center h-screen p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center border border-gray-200 animate-fade-in-scale-up">
+            <h1 class="text-2xl font-bold mb-2 text-green-600" data-translate-key="selectCrop">Select Crop</h1>
+            <p class="text-gray-500 mb-6" data-translate-key="primaryCrop">What is your primary crop?</p>
+            <div id="crop-list" class="max-h-60 overflow-y-auto border border-gray-200 rounded-lg custom-scrollbar"></div>
+            <button type="button" id="back-to-cities" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg mt-4 transition duration-300" data-translate-key="backToCities">Back to Cities</button>
+        </div>
+    </div>
+
+    <div id="login-screen" class="step-card items-center justify-center h-screen p-4 overflow-y-auto">
+        <div class="w-full max-w-4xl flex flex-col lg:flex-row gap-8 animate-fade-in-scale-up">
+            <div class="bg-white p-8 rounded-2xl shadow-2xl w-full lg:w-1/3 text-center border border-gray-200 flex flex-col">
+                <h1 class="text-2xl font-bold mb-2 text-green-600" data-translate-key="joiningCommunity">Joining Community</h1>
+                <p id="joining-community-name" class="block text-lg break-words text-gray-700 font-semibold"></p>
+                <p class="text-gray-500 mb-6 mt-1" data-translate-key="enterName">Enter your name to join</p>
+                <form id="login-form" class="flex flex-col flex-grow">
+                    <input type="text" id="username-input" class="w-full bg-gray-100 border-2 border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:outline-none focus:border-green-500 transition duration-300" data-translate-key-placeholder="yourName" placeholder="Your Name" required>
+                    <div class="flex-grow"></div>
+                    <div>
+                        <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg mt-4 transition duration-300 transform hover:scale-105 active:scale-100" data-translate-key="enterHub">Enter Hub</button>
+                        <button type="button" id="back-to-crops" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg mt-2 transition duration-300" data-translate-key="backToCrops">Back to Crops</button>
+                    </div>
+                </form>
+            </div>
+            <div class="bg-white p-8 rounded-2xl shadow-2xl w-full lg:w-2/3 border border-gray-200">
+                <h3 class="text-2xl font-bold text-green-600 mb-4" data-translate-key="trendingTitle">Or Join a Trending Community</h3>
+                <p class="text-gray-500 mb-6" data-translate-key="trendingDesc">These are the most active groups right now. Click 'Join' to switch your selection.</p>
+                <div id="trending-communities-list" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-app" class="step-card h-screen w-full flex">
+        <aside class="w-1/3 md:w-1/4 bg-white flex flex-col p-4 border-r border-gray-200">
+            <div class="flex items-center mb-6">
+                <h1 class="text-xl font-bold text-gray-800" data-translate-key="krishiSamuday">Krishi Samuday</h1>
+            </div>
+            <div class="mb-4">
+                <select id="language-switcher-chat" class="language-switcher w-full bg-gray-100 border-2 border-gray-300 rounded-lg px-2 py-1 text-sm text-gray-800 focus:outline-none focus:border-green-500 pr-8">
+                    <option value="en">English</option>
+                    <option value="mr">मराठी</option>
+                    <option value="hi">हिन्दी</option>
+                    <option value="ml">മലയാളം</option>
+                </select>
+            </div>
+            <h2 class="text-gray-500 text-sm font-semibold uppercase tracking-wider mb-2 px-2" data-translate-key="communities">Communities</h2>
+            <div class="mb-4">
+                <input type="search" id="search-community" class="w-full bg-gray-100 border-2 border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:border-green-500" data-translate-key-placeholder="search" placeholder="Search...">
+                <div class="mt-2">
+                    <select id="sort-community" class="w-full bg-gray-100 border-2 border-gray-300 rounded-lg px-2 py-1 text-sm text-gray-800 focus:outline-none focus:border-green-500">
+                        <option value="az" data-translate-key="sortAZ">Sort A-Z</option>
+                        <option value="za" data-translate-key="sortZA">Sort Z-A</option>
+                    </select>
+                </div>
+            </div>
+            <ul id="community-list" class="flex-grow overflow-y-auto custom-scrollbar -mr-2 pr-2"></ul>
+            <div class="mt-auto pt-4 border-t border-gray-200">
+                <div class="flex items-center">
+                    <div id="user-avatar" class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center font-bold text-white mr-3"></div>
+                    <span id="username-display" class="font-semibold text-gray-800"></span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col bg-gray-100">
+            <div id="chat-view" class="main-view active flex-col h-full">
+                <header class="bg-white p-4 border-b border-gray-200 flex justify-between items-center shadow-sm">
+                    <div>
+                        <h2 id="community-name" class="text-lg font-bold text-gray-900"></h2>
+                        <p id="user-count" class="text-sm text-gray-500"></p>
+                    </div>
+                </header>
+                <div id="messages-container" class="flex-1 p-6 overflow-y-auto custom-scrollbar"></div>
+                <footer class="bg-gray-100 p-4 border-t border-gray-200 relative">
+                    <emoji-picker id="emoji-picker" class="absolute bottom-20 left-4 z-10 hidden"></emoji-picker>
+                    <form id="message-form" class="flex items-center gap-2">
+                        <button type="button" id="emoji-button" class="p-2 text-gray-500 hover:text-green-500 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </button>
+                        <div class="flex-1 bg-white rounded-full flex items-center border border-gray-300 px-1">
+                            <input type="text" id="message-input" class="w-full bg-transparent border-0 px-4 py-2 text-gray-800 focus:outline-none focus:ring-0" data-translate-key-placeholder="typeMessage" placeholder="Type a message..." autocomplete="off">
+                            <button type="button" class="p-2 text-gray-500 hover:text-green-500 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                            </button>
+                        </div>
+                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white rounded-full p-3 transition transform hover:scale-110 active:scale-100">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>
+                        </button>
+                    </form>
+                </footer>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const screens = { state: document.getElementById('state-selection-screen'), city: document.getElementById('city-selection-screen'), crop: document.getElementById('crop-selection-screen'), login: document.getElementById('login-screen'), chatApp: document.getElementById('chat-app'), };
+            const mainViews = { chat: document.getElementById('chat-view'), };
+            const lists = { state: document.getElementById('state-list'), city: document.getElementById('city-list'), crop: document.getElementById('crop-list'), community: document.getElementById('community-list') };
+            const buttons = { backToStates: document.getElementById('back-to-states'), backToCities: document.getElementById('back-to-cities'), backToCrops: document.getElementById('back-to-crops'), };
+            const loginForm = document.getElementById('login-form');
+            const usernameInput = document.getElementById('username-input');
+            const joiningCommunityName = document.getElementById('joining-community-name');
+            const usernameDisplay = document.getElementById('username-display');
+            const userAvatar = document.getElementById('user-avatar');
+            const communityName = document.getElementById('community-name');
+            const userCount = document.getElementById('user-count');
+            const messagesContainer = document.getElementById('messages-container');
+            const messageForm = document.getElementById('message-form');
+            const messageInput = document.getElementById('message-input');
+            const searchInput = document.getElementById('search-community');
+            const sortSelect = document.getElementById('sort-community');
+            const trendingCommunitiesList = document.getElementById('trending-communities-list');
+            const emojiButton = document.getElementById('emoji-button');
+            const emojiPicker = document.getElementById('emoji-picker');
+            const langSwitchers = [document.getElementById('language-switcher-onboarding'), document.getElementById('language-switcher-chat')];
+
+            // --- App State ---
+            let currentUser = null;
+            let currentCommunity = null;
+            const userSelection = { state: null, city: null, crop: null };
+            let currentLang = 'en';
+            let simulationStarted = false;
+
+            // --- Localization Data ---
+            const locales = { en: 'en-IN', mr: 'mr-IN', hi: 'hi-IN', ml: 'ml-IN' };
+            const translations = {
+                en: { welcome: "Welcome, Farmer!", selectState: "Select your State", selectCity: "Select City", chooseCity: "Now, choose your city", backToStates: "Back to States", selectCrop: "Select Crop", primaryCrop: "What is your primary crop?", backToCities: "Back to Cities", joiningCommunity: "Joining Community", enterName: "Enter your name to join", yourName: "Your Name", enterHub: "Enter Hub", backToCrops: "Back to Crops", trendingTitle: "Or Join a Trending Community", trendingDesc: "These are the most active groups right now. Click 'Join' to switch your selection.", join: "Join", noTrending: "No other active communities yet.", krishiSamuday: "Krishi Samuday", communities: "Communities", search: "Search...", sortAZ: "Sort A-Z", sortZA: "Sort Z-A", noCommunities: "No communities found.", membersOnline: "members online", noMessages: "No messages yet. Start the conversation!", typeMessage: "Type a message...", },
+                mr: { welcome: "शेतकरी मित्रा, स्वागत आहे!", selectState: "तुमचे राज्य निवडा", selectCity: "शहर निवडा", chooseCity: "आता, तुमचे शहर निवडा", backToStates: "राज्यांवर परत जा", selectCrop: "पीक निवडा", primaryCrop: "तुमचे मुख्य पीक कोणते आहे?", backToCities: "शहरांवर परत जा", joiningCommunity: "समूहात सामील व्हा", enterName: "सामील होण्यासाठी तुमचे नाव टाका", yourName: "तुमचे नाव", enterHub: "हबमध्ये प्रवेश करा", backToCrops: "पिकांवर परत जा", trendingTitle: "किंवा एका ट्रेंडिंग समूहात सामील व्हा", trendingDesc: "हे सध्याचे सर्वात सक्रिय गट आहेत. तुमची निवड बदलण्यासाठी 'सामील व्हा' वर क्लिक करा.", join: "सामील व्हा", noTrending: "अद्याप कोणतेही सक्रिय समुदाय नाहीत.", krishiSamuday: "कृषी समुदाय", communities: "समुदाय", search: "शोधा...", sortAZ: "अ-ज्ञ क्रमवारी लावा", sortZA: "ज्ञ-अ क्रमवारी लावा", noCommunities: "कोणतेही समुदाय आढळले नाहीत.", membersOnline: "सदस्य ऑनलाइन", noMessages: "अद्याप संदेश नाहीत. संभाषण सुरू करा!", typeMessage: "एक संदेश टाइप करा...", },
+                hi: { welcome: "किसान, आपका स्वागत है!", selectState: "अपना राज्य चुनें", selectCity: "शहर चुनें", chooseCity: "अब, अपना शहर चुनें", backToStates: "राज्यों पर वापस जाएं", selectCrop: "फसल चुनें", primaryCrop: "आपकी मुख्य फसल क्या है?", backToCities: "शहरों पर वापस जाएं", joiningCommunity: "समुदाय में शामिल हो रहे हैं", enterName: "शामिल होने के लिए अपना नाम दर्ज करें", yourName: "आपका नाम", enterHub: "हब में प्रवेश करें", backToCrops: "फसलों पर वापस जाएं", trendingTitle: "या एक ट्रेंडिंग समुदाय में शामिल हों", trendingDesc: "ये अभी सबसे सक्रिय समूह हैं। अपनी पसंद बदलने के लिए 'शामिल हों' पर क्लिक करें।", join: "शामिल हों", noTrending: "अभी तक कोई अन्य सक्रिय समुदाय नहीं है।", krishiSamuday: "कृषि समुदाय", communities: "समुदाय", search: "खोजें...", sortAZ: "अ-ज्ञ सॉर्ट करें", sortZA: "ज्ञ-अ सॉर्ट करें", noCommunities: "कोई समुदाय नहीं मिला।", membersOnline: "सदस्य ऑनलाइन", noMessages: "अभी तक कोई संदेश नहीं। बातचीत शुरू करें!", typeMessage: "एक संदेश टाइप करें...", },
+                ml: { welcome: "കർഷകാ, സ്വാഗതം!", selectState: "നിങ്ങളുടെ സംസ്ഥാനം തിരഞ്ഞെടുക്കുക", selectCity: "നഗരം തിരഞ്ഞെടുക്കുക", chooseCity: "ഇപ്പോൾ, നിങ്ങളുടെ നഗരം തിരഞ്ഞെടുക്കുക", backToStates: "സംസ്ഥാനങ്ങളിലേക്ക് മടങ്ങുക", selectCrop: "വിള തിരഞ്ഞെടുക്കുക", primaryCrop: "നിങ്ങളുടെ പ്രധാന വിള ഏതാണ്?", backToCities: "നഗരങ്ങളിലേക്ക് മടങ്ങുക", joiningCommunity: "കമ്മ്യൂണിറ്റിയിൽ ചേരുന്നു", enterName: "ചേരുന്നതിന് നിങ്ങളുടെ പേര് നൽകുക", yourName: "നിങ്ങളുടെ പേര്", enterHub: "ഹബിൽ പ്രവേശിക്കുക", backToCrops: "വിളകളിലേക്ക് മടങ്ങുക", trendingTitle: "അല്ലെങ്കിൽ ഒരു ട്രെൻഡിംഗ് കമ്മ്യൂണിറ്റിയിൽ ചേരുക", trendingDesc: "ഇവയാണ് ഇപ്പോൾ ഏറ്റവും സജീവമായ ഗ്രൂപ്പുകൾ. നിങ്ങളുടെ തിരഞ്ഞെടുപ്പ് മാറ്റാൻ 'ചേരുക' ക്ലിക്ക് ചെയ്യുക.", join: "ചേരുക", noTrending: "ഇതുവരെ മറ്റ് സജീവ കമ്മ്യൂണിറ്റികളൊന്നുമില്ല.", krishiSamuday: "കൃഷി സമൂഹം", communities: "കമ്മ്യൂണിറ്റികൾ", search: "തിരയുക...", sortAZ: "A-Z തരംതിരിക്കുക", sortZA: "Z-A തരംതിരിക്കുക", noCommunities: "കമ്മ്യൂണിറ്റികളൊന്നും കണ്ടെത്തിയില്ല.", membersOnline: "അംഗങ്ങൾ ഓൺലൈനിലുണ്ട്", noMessages: "ഇതുവരെ സന്ദേശങ്ങളൊന്നുമില്ല. സംഭാഷണം ആരംഭിക്കുക!", typeMessage: "ഒരു സന്ദേശം ടൈപ്പ് ചെയ്യുക...", }
+            };
+            const farmData = {
+                en: { states: { 'Maharashtra': { cities: ['Solapur', 'Pune', 'Nagpur', 'Nashik'] }, 'Karnataka': { cities: ['Bengaluru', 'Mysuru', 'Hubballi'] }, 'Punjab': { cities: ['Amritsar', 'Ludhiana', 'Jalandhar'] }, 'Kerala': { cities: ['Kochi', 'Thiruvananthapuram', 'Kozhikode'] } }, crops: ['Sugarcane', 'Cotton', 'Rice', 'Banana', 'Wheat', 'Coconut'] },
+                mr: { states: { 'महाराष्ट्र': { cities: ['सोलापूर', 'पुणे', 'नागपूर', 'नाशिक'] }, 'कर्नाटक': { cities: ['बंगळूर', 'म्हैसूर', 'हुबळी'] }, 'पंजाब': { cities: ['अमृतसर', 'लुधियाना', 'जालंधर'] }, 'केरळ': { cities: ['कोची', 'तिरुवनंतपुरम', 'कोझिकोड'] } }, crops: ['ऊस', 'कापूस', 'तांदूळ', 'केळी', 'गहू', 'नारळ'] },
+                hi: { states: { 'महाराष्ट्र': { cities: ['सोलापुर', 'पुणे', 'नागपुर', 'नासिक'] }, 'कर्नाटक': { cities: ['बेंगलुरु', 'मैसूर', 'हुबली'] }, 'पंजाब': { cities: ['अमृतसर', 'लुधियाना', 'जालंधर'] }, 'केरल': { cities: ['कोच्चि', 'तिरुवनंतपुरम', 'कोझिकोड'] } }, crops: ['गन्ना', 'कपास', 'चावल', 'केला', 'गेहूं', 'नारियल'] },
+                ml: { states: { 'മഹാരാഷ്ട്ര': { cities: ['സോലാപ്പൂർ', 'പൂനെ', 'നാഗ്പൂർ', 'നാസിക്'] }, 'കർണാടക': { cities: ['ബെംഗളൂരു', 'മൈസൂരു', 'ഹുബ്ബള്ളി'] }, 'പഞ്ചാബ്': { cities: ['അമൃത്സർ', 'ലൂധിയാന', 'ജലന്ധർ'] }, 'കേരളം': { cities: ['കൊച്ചി', 'തിരുവനന്തപുരം', 'കോഴിക്കോട്'] } }, crops: ['കരിമ്പ്', 'പരുത്തി', 'അരി', 'വാഴ', 'ഗോതമ്പ്', 'തേങ്ങ'] }
+            };
+            const simulatedFarmers = { en: ['Suresh', 'Meena', 'Gopal'], mr: ['सुरेश', 'मीना', 'गोपाळ'], hi: ['सुरेश', 'मीना', 'गोपाल'], ml: ['സുരേഷ്', 'മീന', 'ഗോപാൽ'] };
+            const farmMessages = {
+                en: ['Fertilizer prices seem high this season.', 'Has anyone tried the new seed variety?', 'Expecting rain tomorrow, be careful.', 'My crop is showing signs of pest attack.'],
+                mr: ['या हंगामात खतांचे भाव वाढलेले दिसतात.', 'नवीन बियाण्याचा प्रकार कोणी वापरून पाहिला आहे का?', 'उद्या पावसाची अपेक्षा आहे, काळजी घ्या.', 'माझ्या पिकावर कीटकांचा प्रादुर्भाव दिसून येत आहे.'],
+                hi: ['इस मौसम में उर्वरक की कीमतें ऊंची लगती हैं।', 'क्या किसी ने नई बीज की किस्म आजमाई है?', 'कल बारिश की उम्मीद है, सावधान रहें।', 'मेरी फसल में कीट के हमले के लक्षण दिख रहे हैं।'],
+                ml: ['ഈ സീസണിൽ വളത്തിന്റെ വില കൂടുതലാണെന്ന് തോന്നുന്നു.', 'പുതിയ വിത്ത് ആരെങ്കിലും പരീക്ഷിച്ചിട്ടുണ്ടോ?', 'നാളെ മഴ പ്രതീക്ഷിക്കുന്നു, ശ്രദ്ധിക്കുക.', 'എന്റെ വിളയിൽ കീടങ്ങളുടെ ആക്രമണത്തിന്റെ ലക്ഷണങ്ങൾ കാണിക്കുന്നു.']
+            };
+            const appData = { communities: {} };
+
+            // --- Formatting Helpers ---
+            const formatNumber = (num, lang) => new Intl.NumberFormat(locales[lang]).format(num);
+
+            // --- Core Functions ---
+            const setLanguage = (lang) => {
+                currentLang = lang;
+                const langTranslations = translations[lang];
+                if (!langTranslations) return;
+                langSwitchers.forEach(s => s.value = lang);
+                document.querySelectorAll('[data-translate-key]').forEach(el => {
+                    const key = el.dataset.translateKey;
+                    if (langTranslations[key]) el.textContent = langTranslations[key];
+                });
+                document.querySelectorAll('[data-translate-key-placeholder]').forEach(el => {
+                    const key = el.dataset.translateKeyPlaceholder;
+                    if (langTranslations[key]) el.placeholder = langTranslations[key];
+                });
+                renderStates();
+                if (userSelection.state) renderCities(userSelection.state, true);
+                if (userSelection.crop) renderCrops(true);
+                if (screens.login.classList.contains('active')) renderDashboard();
+                if (screens.chatApp.classList.contains('active')) renderAll();
+            };
+
+            const navigateToOnboarding = (screenName) => {
+                Object.values(screens).forEach(s => s.classList.remove('active', 'flex'));
+                screens[screenName].classList.add('active', 'flex');
+                if (screenName === 'login') renderDashboard();
+            };
+
+            const showMainView = (viewName) => {
+                Object.values(mainViews).forEach(v => v.classList.remove('active', 'flex-col'));
+                mainViews[viewName].classList.add('active', 'flex-col');
+            };
+
+            const createButton = (text, onClick) => {
+                const button = document.createElement('button');
+                button.className = 'w-full text-left p-3 hover:bg-gray-100 transition duration-200 rounded-lg text-gray-700';
+                button.textContent = text;
+                button.addEventListener('click', onClick);
+                return button;
+            };
+
+            const renderStates = () => {
+                lists.state.innerHTML = '';
+                const currentFarmData = farmData[currentLang];
+                Object.keys(currentFarmData.states).forEach(state => {
+                    lists.state.appendChild(createButton(state, () => {
+                        const originalState = Object.keys(farmData.en.states)[Object.keys(currentFarmData.states).indexOf(state)];
+                        userSelection.state = originalState;
+                        renderCities(originalState);
+                        navigateToOnboarding('city');
+                    }));
+                });
+            };
+
+            const renderCities = (stateKey, isLanguageChange = false) => {
+                lists.city.innerHTML = '';
+                const stateIndex = Object.keys(farmData.en.states).indexOf(stateKey);
+                const translatedStateKey = Object.keys(farmData[currentLang].states)[stateIndex];
+                const cities = farmData[currentLang].states[translatedStateKey].cities;
+                const originalCities = farmData.en.states[stateKey].cities;
+                cities.forEach((city, index) => {
+                    lists.city.appendChild(createButton(city, () => {
+                        userSelection.city = originalCities[index];
+                        renderCrops();
+                        navigateToOnboarding('crop');
+                    }));
+                });
+                if (isLanguageChange) renderCrops(true);
+            };
+
+            const renderCrops = (isLanguageChange = false) => {
+                lists.crop.innerHTML = '';
+                const crops = farmData[currentLang].crops;
+                const originalCrops = farmData.en.crops;
+                crops.forEach((crop, index) => {
+                    lists.crop.appendChild(createButton(crop, () => {
+                        userSelection.crop = originalCrops[index];
+                        updateJoiningCommunityName();
+                        navigateToOnboarding('login');
+                        usernameInput.focus();
+                    }));
+                });
+                if (isLanguageChange) updateJoiningCommunityName();
+            };
+
+            const updateJoiningCommunityName = () => {
+                if (!userSelection.state || !userSelection.city || !userSelection.crop) return;
+                const communityId = `#${userSelection.state}-${userSelection.city}-${userSelection.crop}`;
+                joiningCommunityName.textContent = communityId;
+            }
+
+            const renderCommunityList = () => {
+                lists.community.innerHTML = '';
+                const searchTerm = searchInput.value.toLowerCase();
+                let communities = Object.keys(appData.communities).filter(name => name.toLowerCase().includes(searchTerm));
+                communities.sort((a, b) => sortSelect.value === 'az' ? a.localeCompare(b) : b.localeCompare(a));
+                if (communities.length === 0) lists.community.innerHTML = `<li class="p-2 text-gray-500 text-sm">${translations[currentLang].noCommunities}</li>`;
+                communities.forEach(name => {
+                    const li = document.createElement('li');
+                    const isActive = name === currentCommunity;
+                    li.innerHTML = `<a href="#" class="flex items-center justify-between p-3 rounded-lg transition ${isActive ? 'bg-green-500 text-white shadow' : 'hover:bg-gray-100 text-gray-700'}"><span class="text-sm font-semibold break-all">${name}</span><span id="dot-${name.replace(/#/g, '')}" class="hidden notification-dot"></span></a>`;
+                    li.querySelector('a').addEventListener('click', (e) => { e.preventDefault(); switchCommunity(name); });
+                    lists.community.appendChild(li);
+                });
+            };
+
+            const renderMessages = () => {
+                messagesContainer.innerHTML = '';
+                const community = appData.communities[currentCommunity];
+                if (!community || !community.messages || community.messages.length === 0) {
+                    messagesContainer.innerHTML = `<div class="text-center text-gray-400 mt-4">${translations[currentLang].noMessages}</div>`;
+                    return;
+                }
+                community.messages.forEach(msg => {
+                    const isCurrentUser = msg.sender === currentUser;
+                    const messageEl = document.createElement('div');
+                    messageEl.className = `flex mb-4 items-end ${isCurrentUser ? 'justify-end' : 'justify-start'} animate-slide-in-up`;
+                    messageEl.innerHTML = `
+                        <div class="max-w-xs md:max-w-md">
+                            <div class="text-xs text-gray-400 mb-1 ${isCurrentUser ? 'text-right' : 'text-left'}">${msg.sender}</div>
+                            <div class="px-4 py-3 rounded-2xl ${isCurrentUser ? 'bg-green-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'}">
+                                <p class="break-words">${msg.text}</p>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-1 ${isCurrentUser ? 'text-right' : 'text-left'}">${msg.timestamp}</div>
+                        </div>`;
+                    messagesContainer.appendChild(messageEl);
+                });
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                const dot = document.getElementById(`dot-${currentCommunity.replace(/#/g, '')}`);
+                if (dot) dot.classList.add('hidden');
+            };
+
+            const renderDashboard = () => {
+                const trending = Object.entries(appData.communities).map(([name, data]) => ({ name, score: ((data.users?.length || 0) * 3) + (data.messages?.length || 0) })).sort((a, b) => b.score - a.score).slice(0, 3);
+                trendingCommunitiesList.innerHTML = '';
+                if (trending.length === 0) {
+                    trendingCommunitiesList.innerHTML = `<p class="text-gray-400">${translations[currentLang].noTrending}</p>`;
+                } else {
+                    trending.forEach(comm => {
+                        const div = document.createElement('div');
+                        div.className = 'flex justify-between items-center bg-gray-100 hover:bg-gray-200 p-3 rounded-lg transition duration-300';
+                        div.innerHTML = `<span class="font-semibold text-sm break-all text-gray-700">${comm.name}</span><button data-community-name="${comm.name}" class="join-trending-btn bg-green-500 hover:bg-green-600 text-white text-sm font-bold py-1 px-3 rounded-md transition transform hover:scale-105 active:scale-100">${translations[currentLang].join}</button>`;
+                        trendingCommunitiesList.appendChild(div);
+                    });
+                }
+            };
+
+            const updateHeader = () => {
+                communityName.textContent = currentCommunity;
+                const userList = appData.communities[currentCommunity]?.users || [];
+                userCount.textContent = `${formatNumber(userList.length, currentLang)} ${translations[currentLang].membersOnline}`;
+            };
+
+            const switchCommunity = (name) => {
+                if (currentCommunity === name) { return; }
+                if (appData.communities[currentCommunity]) {
+                    const oldUsers = appData.communities[currentCommunity].users;
+                    appData.communities[currentCommunity].users = oldUsers.filter(u => u !== currentUser);
+                }
+                currentCommunity = name;
+                if (!appData.communities[currentCommunity]) {
+                    appData.communities[currentCommunity] = { users: [], messages: [] };
+                }
+                if (!appData.communities[currentCommunity].users.includes(currentUser)) {
+                    appData.communities[currentCommunity].users.push(currentUser);
+                }
+                renderAll();
+            };
+
+            const renderAll = () => { renderCommunityList(); updateHeader(); renderMessages(); };
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                const username = usernameInput.value.trim();
+                const communityId = `#${userSelection.state}-${userSelection.city}-${userSelection.crop}`;
+                if (username) {
+                    currentUser = username;
+                    currentCommunity = communityId;
+                    if (!appData.communities[currentCommunity]) {
+                        appData.communities[currentCommunity] = { users: [], messages: [] };
+                    }
+                    if (!appData.communities[currentCommunity].users.includes(currentUser)) {
+                        appData.communities[currentCommunity].users.push(currentUser);
+                    }
+                    usernameDisplay.textContent = currentUser;
+                    userAvatar.textContent = currentUser.charAt(0).toUpperCase();
+                    navigateToOnboarding('chatApp');
+                    renderAll();
+                    showMainView('chat');
+                    if (!simulationStarted) {
+                        startSimulation();
+                        simulationStarted = true;
+                    }
+                }
+            };
+
+            const handleSendMessage = (e) => {
+                e.preventDefault();
+                const text = messageInput.value.trim();
+                if (text) {
+                    const newMessage = { sender: currentUser, text, timestamp: new Date().toLocaleTimeString(locales[currentLang], { hour: '2-digit', minute: '2-digit' }) };
+                    appData.communities[currentCommunity].messages.push(newMessage);
+                    renderMessages();
+                    messageInput.value = '';
+                }
+            };
+
+            const startSimulation = () => {
+                setInterval(() => {
+                    const communities = Object.keys(appData.communities);
+                    if (communities.length === 0) return;
+                    const randomCommunity = communities[Math.floor(Math.random() * communities.length)];
+                    const farmer = simulatedFarmers[currentLang][Math.floor(Math.random() * simulatedFarmers[currentLang].length)];
+                    const msg = farmMessages[currentLang][Math.floor(Math.random() * farmMessages[currentLang].length)];
+                    if (!appData.communities[randomCommunity].users.includes(farmer)) appData.communities[randomCommunity].users.push(farmer);
+                    appData.communities[randomCommunity].messages.push({ sender: farmer, text: msg, timestamp: new Date().toLocaleTimeString(locales[currentLang], { hour: '2-digit', minute: '2-digit' }) });
+                    if (screens.chatApp.classList.contains('active')) renderAll();
+                    if (randomCommunity !== currentCommunity) {
+                        const dot = document.getElementById(`dot-${randomCommunity.replace(/#/g, '')}`);
+                        if (dot) dot.classList.remove('hidden');
+                    }
+                }, 8000);
+            };
+
+            // --- Event Listeners ---
+            loginForm.addEventListener('submit', handleLogin);
+            messageForm.addEventListener('submit', handleSendMessage);
+            searchInput.addEventListener('input', renderCommunityList);
+            sortSelect.addEventListener('change', renderCommunityList);
+            buttons.backToStates.addEventListener('click', () => navigateToOnboarding('state'));
+            buttons.backToCities.addEventListener('click', () => navigateToOnboarding('city'));
+            buttons.backToCrops.addEventListener('click', () => navigateToOnboarding('crop'));
+            trendingCommunitiesList.addEventListener('click', (e) => {
+                if (e.target.classList.contains('join-trending-btn')) {
+                    const communityToJoin = e.target.dataset.communityName;
+                    const [_, state, city, crop] = communityToJoin.split('-');
+                    userSelection.state = state;
+                    userSelection.city = city;
+                    userSelection.crop = crop;
+                    updateJoiningCommunityName();
+                }
+            });
+            langSwitchers.forEach(s => s.addEventListener('change', (e) => setLanguage(e.target.value)));
+            emojiButton.addEventListener('click', (e) => { e.stopPropagation(); emojiPicker.classList.toggle('hidden'); });
+            emojiPicker.addEventListener('emoji-click', event => { messageInput.value += event.detail.unicode; });
+            document.addEventListener('click', (e) => {
+                if (!emojiPicker.contains(e.target) && e.target !== emojiButton) {
+                    emojiPicker.classList.add('hidden');
+                }
+            });
+
+            // --- Initial Render ---
+            setLanguage('en');
+        });
+    </script>
+</body>
+</html> 

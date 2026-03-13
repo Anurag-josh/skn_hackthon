@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-key="page_title">Crop Rotation Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans', sans-serif;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-2xl">
+        <div class="bg-white rounded-2xl shadow-2xl p-8">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-green-600" data-key="main_title">Farmer's Crop Rotation Planner</h1>
+                <p class="text-gray-500 mt-2" data-key="subtitle">Get intelligent advice for your next crop cycle.</p>
+            </div>
+
+            <div class="mb-6">
+                <label for="lang-select" class="block text-sm font-medium text-gray-700 mb-1" data-key="select_language_label">Choose Language</label>
+                <select id="lang-select" class="w-full bg-gray-100 border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-green-500 transition">
+                    <option value="en">English</option>
+                    <option value="hi">हिन्दी (Hindi)</option>
+                    <option value="mr">मराठी (Marathi)</option>
+                    <option value="ml">മലയാളം (Malayalam)</option>
+                </select>
+            </div>
+
+            <form id="advisor-form" class="space-y-6">
+                <div>
+                    <label for="current-crop" class="block text-sm font-medium text-gray-700 mb-1" data-key="select_crop_label">Select Your Current Crop</label>
+                    <select id="current-crop" class="w-full bg-gray-100 border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-green-500 transition"></select>
+                </div>
+                <div>
+                    <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105 active:scale-100" data-key="get_advice_button">Get Advice</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="recommendation-card" class="bg-white rounded-2xl shadow-2xl p-8 mt-8 hidden">
+            </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const advisorForm = document.getElementById('advisor-form');
+            const currentCropSelect = document.getElementById('current-crop');
+            const recommendationCard = document.getElementById('recommendation-card');
+            const languageSelector = document.getElementById('lang-select');
+
+            // --- Static Crop Data (unchanging properties) ---
+            const cropData = {
+                "Rice": { "duration_months": 4, "water_requirement": "Low", "soil_impact": "Improves fertility", "gap_months": 1, "nutrient_contribution": "Nitrogen fixing" },
+                "Coconut": { "duration_months": 0, "water_requirement": "Medium", "soil_impact": "Improves soil cover", "gap_months": 0, "nutrient_contribution": "Adds biomass" },
+                "Rubber": { "duration_months": 0, "water_requirement": "Low", "soil_impact": "Prevents erosion", "gap_months": 0, "nutrient_contribution": "Nitrogen fixing" },
+                "Black Pepper": { "duration_months": 0, "water_requirement": "Medium", "soil_impact": "Diversifies farm", "gap_months": 0, "nutrient_contribution": "Adds organic matter" },
+                "Banana": { "duration_months": 9, "water_requirement": "Medium", "soil_impact": "Improves soil structure", "gap_months": 2, "nutrient_contribution": "Adds biomass" },
+                "Ginger": { "duration_months": 8, "water_requirement": "Medium", "soil_impact": "Nutrient intensive", "gap_months": 2, "nutrient_contribution": "Adds biomass" },
+                "Turmeric": { "duration_months": 9, "water_requirement": "Medium", "soil_impact": "Improves soil aeration", "gap_months": 1, "nutrient_contribution": "Adds organic matter" },
+                "Tapioca": { "duration_months": 10, "water_requirement": "Low", "soil_impact": "Can deplete potassium", "gap_months": 2, "nutrient_contribution": "Adds organic residue" },
+                "Cardamom": { "duration_months": 0, "water_requirement": "High", "soil_impact": "Maintains humidity", "gap_months": 0, "nutrient_contribution": "Leaf litter enriches soil" },
+                "Bitter Gourd": { "duration_months": 3, "water_requirement": "Medium", "soil_impact": "Natural pest control", "gap_months": 1, "nutrient_contribution": "Adds organic matter" },
+                "Okra": { "duration_months": 3, "water_requirement": "Medium", "soil_impact": "Breaks pest cycles", "gap_months": 1, "nutrient_contribution": "Adds organic matter" },
+                "Tomato": { "duration_months": 4, "water_requirement": "Medium", "soil_impact": "Disease suppression", "gap_months": 2, "nutrient_contribution": "Adds biomass" },
+                "Cucumber": { "duration_months": 3, "water_requirement": "High", "soil_impact": "Improves soil structure", "gap_months": 1, "nutrient_contribution": "Adds organic matter" },
+                "Elephant Foot Yam": { "duration_months": 8, "water_requirement": "Medium", "soil_impact": "Improves soil tilth", "gap_months": 2, "nutrient_contribution": "Adds organic matter" },
+                "Pineapple": { "duration_months": 18, "water_requirement": "Low", "soil_impact": "Can increase soil acidity", "gap_months": 4, "nutrient_contribution": "Adds organic matter" },
+                "Jackfruit": { "duration_months": 0, "water_requirement": "Low", "soil_impact": "Weed suppression", "gap_months": 0, "nutrient_contribution": "Nitrogen fixing" },
+                "Mango": { "duration_months": 0, "water_requirement": "Low", "soil_impact": "Improves soil cover", "gap_months": 0, "nutrient_contribution": "Adds biomass" },
+                "Coffee": { "duration_months": 0, "water_requirement": "Medium", "soil_impact": "Prevents soil erosion", "gap_months": 0, "nutrient_contribution": "Adds organic matter" },
+                "Arecanut": { "duration_months": 0, "water_requirement": "High", "soil_impact": "Efficient land use", "gap_months": 0, "nutrient_contribution": "Adds biomass" }
+            };
+
+            // --- All UI text and dynamic data translations ---
+            const translations = {
+                'en': {
+                    page_title: "Crop Rotation Planner", main_title: "Farmer's Crop Rotation Planner", subtitle: "Get intelligent advice for your next crop cycle.", select_language_label: "Choose Language", select_crop_label: "Select Your Current Crop", get_advice_button: "Get Advice", analyzing_text: "Analyzing...", recommendation_prefix: "After {crop}, we recommend:", timeline_intercrop: "This can be intercropped immediately with your <strong>{crop}</strong>.", timeline_harvest: "Harvest <strong>{crop}</strong> by <strong>{date}</strong>", timeline_wait: "Wait <strong>{months} months</strong>", timeline_sow: "Sow <strong>{crop}</strong> around <strong>{date}</strong>", card_duration: "Duration", card_water: "Water Need", card_soil: "Soil Impact", card_nutrients: "Nutrients", card_months: "months", card_perennial: "Perennial", card_weather_title: "Weather Suitability (Mock Data)", card_weather_desc: "The current weather conditions appear suitable for land preparation.",
+                    terms: { "Low": "Low", "Medium": "Medium", "High": "High", "Improves fertility": "Improves fertility", "Improves soil cover": "Improves soil cover", "Prevents erosion": "Prevents erosion", "Diversifies farm": "Diversifies farm", "Improves soil structure": "Improves soil structure", "Nutrient intensive": "Nutrient intensive", "Improves soil aeration": "Improves soil aeration", "Can deplete potassium": "Can deplete potassium", "Maintains humidity": "Maintains humidity", "Natural pest control": "Natural pest control", "Breaks pest cycles": "Breaks pest cycles", "Disease suppression": "Disease suppression", "Improves soil tilth": "Improves soil tilth", "Can increase soil acidity": "Can increase soil acidity", "Weed suppression": "Weed suppression", "Efficient land use": "Efficient land use", "Nitrogen fixing": "Nitrogen fixing", "Adds biomass": "Adds biomass", "Adds organic matter": "Adds organic matter", "Adds organic residue": "Adds organic residue", "Leaf litter enriches soil": "Leaf litter enriches soil" },
+                    crops: {
+                        "Rice": { name: "Rice (Paddy) (Mundakan Season)", next_crop: "Pulses (Green Gram, Black Gram)", benefit: "Fixes nitrogen and improves soil fertility for the next season." },
+                        "Coconut": { name: "Coconut (West Coast Tall)", next_crop: "Banana or Pineapple (Intercrop)", benefit: "Suppresses weeds, provides additional income, and utilizes space efficiently." },
+                        "Rubber": { name: "Rubber (RRII 105)", next_crop: "Leguminous cover crops (Mucuna)", benefit: "Prevents soil erosion, enriches soil with nitrogen, and controls weeds." },
+                        "Black Pepper": { name: "Black Pepper (Panniyur-1)", next_crop: "Arecanut (as support)", benefit: "Arecanut provides natural support and shade, creating a multi-tier cropping system." },
+                        "Banana": { name: "Banana (Nendran)", next_crop: "Ginger or Turmeric", benefit: "Helps break disease cycles and enhances soil organic matter." },
+                        "Ginger": { name: "Ginger (Rio de Janeiro)", next_crop: "Cowpea or other legumes", benefit: "Replenishes nitrogen consumed by the ginger crop." },
+                        "Turmeric": { name: "Turmeric (Prathibha)", next_crop: "Maize", benefit: "Maize effectively utilizes residual nutrients left by the turmeric harvest." },
+                        "Tapioca": { name: "Tapioca (Cassava) (Sree Vijaya H-226)", next_crop: "Pulses (Green Gram)", benefit: "Restores soil fertility after the nutrient-demanding tapioca crop." },
+                        "Cardamom": { name: "Cardamom (Malabar)", next_crop: "Shade-providing trees (intercrop)", benefit: "Maintains a balanced ecosystem and provides necessary shade for cardamom." },
+                        "Bitter Gourd": { name: "Bitter Gourd (Preethi)", next_crop: "Marigold", benefit: "Marigold roots release compounds that control nematodes, a common pest for gourds." },
+                        "Okra": { name: "Okra (Lady’s Finger) (Arka Anamika)", next_crop: "Beans (Bush Beans)", benefit: "Beans fix nitrogen, which is beneficial for the next okra crop." },
+                        "Tomato": { name: "Tomato (Shakthi)", next_crop: "Onion or Garlic", benefit: "Helps control common soil-borne diseases that affect tomatoes." },
+                        "Cucumber": { name: "Cucumber (Arunima)", next_crop: "Radish", benefit: "Radishes have deep taproots that help loosen and aerate compacted soil." },
+                        "Elephant Foot Yam": { name: "Elephant Foot Yam (Gajendra)", next_crop: "Green Gram", benefit: "A short-duration legume crop that fixes nitrogen before the next yam season." },
+                        "Pineapple": { name: "Pineapple (Kew)", next_crop: "Legumes (as cover crop)", benefit: "Prevents soil erosion and adds nitrogen to the soil between pineapple cycles." },
+                        "Jackfruit": { name: "Jackfruit (All Season)", next_crop: "Cover crops (Calopogonium)", benefit: "Effectively controls weeds and enriches the soil around the trees." },
+                        "Mango": { name: "Mango (Neelam)", next_crop: "Vegetables (in early years)", benefit: "Provides early income and makes efficient use of land before trees mature." },
+                        "Coffee": { name: "Coffee (Robusta)", next_crop: "Pepper Vines", benefit: "Creates a diversified, multi-story cropping system for higher returns." },
+                        "Arecanut": { name: "Arecanut (Mangala)", next_crop: "Banana or Cocoa (Intercrop)", benefit: "Utilizes inter-space for additional income and improves the microclimate." }
+                    }
+                },
+                'hi': {
+                    page_title: "फसल चक्र योजनाकार", main_title: "किसान फसल चक्र योजनाकार", subtitle: "अपनी अगली फसल चक्र के लिए बुद्धिमान सलाह प्राप्त करें।", select_language_label: "भाषा चुनें", select_crop_label: "अपनी वर्तमान फसल का चयन करें", get_advice_button: "सलाह लें", analyzing_text: "विश्लेषण हो रहा है...", recommendation_prefix: "{crop} के बाद, हम अनुशंसा करते हैं:", timeline_intercrop: "इसे आपकी <strong>{crop}</strong> के साथ तुरंत इंटरक्रॉप किया जा सकता है।", timeline_harvest: "<strong>{date}</strong> तक <strong>{crop}</strong> की कटाई करें", timeline_wait: "<strong>{months} महीने</strong> प्रतीक्षा करें", timeline_sow: "<strong>{date}</strong> के आसपास <strong>{crop}</strong> बोएं", card_duration: "अवधि", card_water: "पानी की जरूरत", card_soil: "मिट्टी पर प्रभाव", card_nutrients: "पोषक तत्व", card_months: "महीने", card_perennial: "बारहमासी", card_weather_title: "मौसम उपयुक्तता (मॉक डेटा)", card_weather_desc: "वर्तमान मौसम की स्थिति भूमि की तैयारी के लिए उपयुक्त प्रतीत होती है।",
+                    terms: { "Low": "कम", "Medium": "मध्यम", "High": "उच्च", "Improves fertility": "उर्वरता में सुधार करता है", "Improves soil cover": "मिट्टी के आवरण में सुधार करता है", "Prevents erosion": "कटाव को रोकता है", "Diversifies farm": "खेत में विविधता लाता है", "Improves soil structure": "मिट्टी की संरचना में सुधार करता है", "Nutrient intensive": "पोषक तत्व गहन", "Improves soil aeration": "मिट्टी के वातन में सुधार करता है", "Can deplete potassium": "पोटेशियम कम कर सकता है", "Maintains humidity": "नमी बनाए रखता है", "Natural pest control": "प्राकृतिक कीट नियंत्रण", "Breaks pest cycles": "कीट चक्रों को तोड़ता है", "Disease suppression": "रोग का दमन", "Improves soil tilth": "मिट्टी की जुताई में सुधार करता है", "Can increase soil acidity": "मिट्टी की अम्लता बढ़ा सकता है", "Weed suppression": "खरपतवार दमन", "Efficient land use": "कुशल भूमि उपयोग", "Nitrogen fixing": "नाइट्रोजन स्थिरीकरण", "Adds biomass": "बायोमास जोड़ता है", "Adds organic matter": "कार्बनिक पदार्थ जोड़ता है", "Adds organic residue": "कार्बनिक अवशेष जोड़ता है", "Leaf litter enriches soil": "पत्ती कूड़ा मिट्टी को समृद्ध करता है" },
+                    crops: {
+                        "Rice": { name: "चावल (धान) (मुंडकन मौसम)", next_crop: "दालें (हरा चना, काला चना)", benefit: "अगले मौसम के लिए नाइट्रोजन स्थिर करता है और मिट्टी की उर्वरता में सुधार करता है।" },
+                        "Coconut": { name: "नारियल (वेस्ट कोस्ट टॉल)", next_crop: "केला या अनानास (अंतरफसल)", benefit: "खरपतवार को दबाता है, अतिरिक्त आय प्रदान करता है, और स्थान का कुशलतापूर्वक उपयोग करता है।" },
+                        "Rubber": { name: "रबर (आरआरआईआई 105)", next_crop: "फलीदार कवर फसलें (म्यूकुना)", benefit: "मिट्टी के कटाव को रोकता है, मिट्टी को नाइट्रोजन से समृद्ध करता है, और खरपतवारों को नियंत्रित करता है।" },
+                        "Black Pepper": { name: "काली मिर्च (पन्नियूर-1)", next_crop: "सुपारी (सहारे के रूप में)", benefit: "सुपारी प्राकृतिक सहारा और छाया प्रदान करती है, जिससे एक बहु-स्तरीय फसल प्रणाली बनती है।" },
+                        "Banana": { name: "केला (नेंद्रन)", next_crop: "अदरक या हल्दी", benefit: "रोग चक्रों को तोड़ने में मदद करता है और मिट्टी के कार्बनिक पदार्थों को बढ़ाता है।" },
+                        "Ginger": { name: "अदरक (रियो डी जनेरियो)", next_crop: "लोबिया या अन्य फलियां", benefit: "अदरक की फसल द्वारा खपत किए गए नाइट्रोजन की पूर्ति करता है।" },
+                        "Turmeric": { name: "हल्दी (प्रतिभा)", next_crop: "मक्का", benefit: "मक्का हल्दी की कटाई से बचे हुए पोषक तत्वों का प्रभावी ढंग से उपयोग करता है।" },
+                        "Tapioca": { name: "टैपिओका (कसावा) (श्री विजया एच-226)", next_crop: "दालें (हरा चना)", benefit: "पोषक तत्वों की मांग वाली टैपिओका फसल के बाद मिट्टी की उर्वरता को पुनर्स्थापित करता है।" },
+                        "Cardamom": { name: "इलायची (मालाबार)", next_crop: "छाया प्रदान करने वाले पेड़ (अंतरफसल)", benefit: "एक संतुलित पारिस्थितिकी तंत्र बनाए रखता है और इलायची के लिए आवश्यक छाया प्रदान करता है।" },
+                        "Bitter Gourd": { name: "करेला (प्रीति)", next_crop: "गेंदा", benefit: "गेंदे की जड़ें ऐसे यौगिक छोड़ती हैं जो नेमाटोड को नियंत्रित करते हैं, जो लौकी के लिए एक आम कीट है।" },
+                        "Okra": { name: "भिंडी (अर्का अनामिका)", next_crop: "बीन्स (बुश बीन्स)", benefit: "बीन्स नाइट्रोजन स्थिर करते हैं, जो अगली भिंडी की फसल के लिए फायदेमंद है।" },
+                        "Tomato": { name: "टमाटर (शक्ति)", next_crop: "प्याज या लहसुन", benefit: "टमाटर को प्रभावित करने वाली आम मिट्टी-जनित बीमारियों को नियंत्रित करने में मदद करता है।" },
+                        "Cucumber": { name: "खीरा (अरुणिमा)", next_crop: "मूली", benefit: "मूली की गहरी जड़ें होती हैं जो संकुचित मिट्टी को ढीला करने और हवादार करने में मदद करती हैं।" },
+                        "Elephant Foot Yam": { name: "जिमीकंद (गजेंद्र)", next_crop: "हरा चना", benefit: "एक छोटी अवधि की फलीदार फसल जो अगले जिमीकंद के मौसम से पहले नाइट्रोजन स्थिर करती है।" },
+                        "Pineapple": { name: "अनानास (क्यू)", next_crop: "फलियां (कवर फसल के रूप में)", benefit: "मिट्टी के कटाव को रोकता है और अनानास चक्रों के बीच मिट्टी में नाइट्रोजन जोड़ता है।" },
+                        "Jackfruit": { name: "कटहल (ऑल सीजन)", next_crop: "कवर फसलें (कैलोपोगोनियम)", benefit: "खरपतवारों को प्रभावी ढंग से नियंत्रित करता है और पेड़ों के आसपास की मिट्टी को समृद्ध करता है।" },
+                        "Mango": { name: "आम (नीलम)", next_crop: "सब्जियां (शुरुआती वर्षों में)", benefit: "पेड़ों के परिपक्व होने से पहले प्रारंभिक आय प्रदान करता है और भूमि का कुशल उपयोग करता है।" },
+                        "Coffee": { name: "कॉफी (रोबस्टा)", next_crop: "काली मिर्च की बेलें", benefit: "उच्च रिटर्न के लिए एक विविध, बहु-मंजिला फसल प्रणाली बनाता है।" },
+                        "Arecanut": { name: "सुपारी (मंगला)", next_crop: "केला या कोको (अंतरफसल)", benefit: "अतिरिक्त आय के लिए अंतर-स्थान का उपयोग करता है और सूक्ष्म जलवायु में सुधार करता है।" }
+                    }
+                },
+                'mr': {
+                    page_title: "पीक रोटेशन नियोजक", main_title: "शेतकरी पीक रोटेशन नियोजक", subtitle: "तुमच्या पुढील पीक चक्रासाठी बुद्धिमान सल्ला मिळवा.", select_language_label: "भाषा निवडा", select_crop_label: "तुमचे वर्तमान पीक निवडा", get_advice_button: "सल्ला घ्या", analyzing_text: "विश्लेषण करत आहे...", recommendation_prefix: "{crop} नंतर, आम्ही शिफारस करतो:", timeline_intercrop: "हे तुमच्या <strong>{crop}</strong> सोबत ताबडतोब आंतरपीक म्हणून घेतले जाऊ शकते.", timeline_harvest: "<strong>{date}</strong> पर्यंत <strong>{crop}</strong> काढा", timeline_wait: "<strong>{months} महिने</strong> थांबा", timeline_sow: "<strong>{date}</strong> च्या सुमारास <strong>{crop}</strong> पेरा", card_duration: "कालावधी", card_water: "पाण्याची गरज", card_soil: "मातीवर परिणाम", card_nutrients: "पोषक तत्वे", card_months: "महिने", card_perennial: "बारमाही", card_weather_title: "हवामान योग्यता (मॉक डेटा)", card_weather_desc: "सध्याची हवामान परिस्थिती जमिनीच्या तयारीसाठी योग्य असल्याचे दिसते.",
+                    terms: { "Low": "कमी", "Medium": "मध्यम", "High": "जास्त", "Improves fertility": "सुपीकता सुधारते", "Improves soil cover": "मातीचे आच्छादन सुधारते", "Prevents erosion": "धूप प्रतिबंधित करते", "Diversifies farm": "शेतीमध्ये विविधता आणते", "Improves soil structure": "मातीची रचना सुधारते", "Nutrient intensive": "पोषक तत्व-केंद्रित", "Improves soil aeration": "मातीतील हवा खेळती ठेवते", "Can deplete potassium": "पोटॅशियम कमी करू शकते", "Maintains humidity": "आर्द्रता राखते", "Natural pest control": "नैसर्गिक कीड नियंत्रण", "Breaks pest cycles": "कीड चक्र तोडते", "Disease suppression": "रोग दाबते", "Improves soil tilth": "मातीची मशागत सुधारते", "Can increase soil acidity": "मातीची आम्लता वाढवू शकते", "Weed suppression": "तण दाबते", "Efficient land use": "कार्यक्षम जमीन वापर", "Nitrogen fixing": "नायट्रोजन स्थिरीकरण", "Adds biomass": "बायोमास वाढवते", "Adds organic matter": "सेंद्रिय पदार्थ वाढवते", "Adds organic residue": "सेंद्रिय अवशेष वाढवते", "Leaf litter enriches soil": "पानांचा कचरा माती समृद्ध करतो" },
+                    crops: {
+                        "Rice": { name: "भात (धान) (मुंडकन हंगाम)", next_crop: "डाळी (मूग, उडीद)", benefit: "पुढील हंगामासाठी नायट्रोजन स्थिर करते आणि जमिनीची सुपीकता सुधारते." },
+                        "Coconut": { name: "नारळ (वेस्ट कोस्ट टॉल)", next_crop: "केळी किंवा अननस (आंतरपीक)", benefit: "तण दाबते, अतिरिक्त उत्पन्न देते आणि जागेचा कार्यक्षमतेने वापर करते." },
+                        "Rubber": { name: "रबर (आरआरआयआय १०५)", next_crop: "शेंगावर्गीय आच्छादन पिके (म्युकुना)", benefit: "मातीची धूप रोखते, मातीला नायट्रोजनने समृद्ध करते आणि तणांवर नियंत्रण ठेवते." },
+                        "Black Pepper": { name: "काळी मिरी (पन्नियूर-१)", next_crop: "सुपारी (आधार म्हणून)", benefit: "सुपारी नैसर्गिक आधार आणि सावली प्रदान करते, ज्यामुळे बहु-स्तरीय पीक प्रणाली तयार होते." },
+                        "Banana": { name: "केळी (नेंद्रन)", next_crop: "आले किंवा हळद", benefit: "रोग चक्र तोडण्यास मदत करते आणि जमिनीतील सेंद्रिय पदार्थ वाढवते." },
+                        "Ginger": { name: "आले (रिओ डी जानेरो)", next_crop: "चवळी किंवा इतर शेंगा", benefit: "आल्याच्या पिकाने वापरलेल्या नायट्रोजनची पूर्तता करते." },
+                        "Turmeric": { name: "हळद (प्रतिभा)", next_crop: "मका", benefit: "मका हळदीच्या कापणीतून उरलेल्या पोषक तत्वांचा प्रभावीपणे वापर करतो." },
+                        "Tapioca": { name: "टॅपिओका (कसावा) (श्री विजया एच-२२६)", next_crop: "डाळी (मूग)", benefit: "पोषक तत्वांची जास्त गरज असलेल्या टॅपिओका पिकानंतर जमिनीची सुपीकता पुनर्संचयित करते." },
+                        "Cardamom": { name: "वेलची (मलबार)", next_crop: "सावली देणारी झाडे (आंतरपीक)", benefit: "संतुलित परिसंस्था राखते आणि वेलचीसाठी आवश्यक सावली प्रदान करते." },
+                        "Bitter Gourd": { name: "कारले (प्रीती)", next_crop: "झेंडू", benefit: "झेंडूची मुळे अशी संयुगे सोडतात जी सूत्रकृमींवर नियंत्रण ठेवतात, जे कारल्यासाठी एक सामान्य कीड आहे." },
+                        "Okra": { name: "भेंडी (अर्का अनामिका)", next_crop: "बीन्स (बुश बीन्स)", benefit: "बीन्स नायट्रोजन स्थिर करतात, जे पुढील भेंडीच्या पिकासाठी फायदेशीर आहे." },
+                        "Tomato": { name: "टोमॅटो (शक्ती)", next_crop: "कांदा किंवा लसूण", benefit: "टोमॅटोवर परिणाम करणाऱ्या सामान्य मातीजन्य रोगांवर नियंत्रण ठेवण्यास मदत करते." },
+                        "Cucumber": { name: "काकडी (अरुणिमा)", next_crop: "मुळा", benefit: "मुळ्यांना खोल मुळे असतात जी घट्ट झालेली माती मोकळी करण्यास आणि हवा खेळती ठेवण्यास मदत करतात." },
+                        "Elephant Foot Yam": { name: "सुरण (गजेंद्र)", next_crop: "मूग", benefit: "एक लहान कालावधीचे शेंगावर्गीय पीक जे पुढील सुरणाच्या हंगामापूर्वी नायट्रोजन स्थिर करते." },
+                        "Pineapple": { name: "अननस (क्यू)", next_crop: "शेंगा (आच्छादन पीक म्हणून)", benefit: "मातीची धूप रोखते आणि अननस चक्रांच्या दरम्यान मातीत नायट्रोजन टाकते." },
+                        "Jackfruit": { name: "फणस (ऑल सीझन)", next_crop: "आच्छादन पिके (कॅलोपोगोनियम)", benefit: "तणांवर प्रभावीपणे नियंत्रण ठेवते आणि झाडांभोवतीची माती समृद्ध करते." },
+                        "Mango": { name: "आंबा (नीलम)", next_crop: "भाजीपाला (सुरुवातीच्या वर्षांमध्ये)", benefit: "झाडे परिपक्व होण्यापूर्वी लवकर उत्पन्न देते आणि जमिनीचा कार्यक्षम वापर करते." },
+                        "Coffee": { name: "कॉफी (रोबस्टा)", next_crop: "मिरी वेल", benefit: "जास्त परताव्यासाठी एक वैविध्यपूर्ण, बहु-मजली पीक प्रणाली तयार करते." },
+                        "Arecanut": { name: "सुपारी (मंगला)", next_crop: "केळी किंवा कोको (आंतरपीक)", benefit: "अतिरिक्त उत्पन्नासाठी आंतर-जागेचा वापर करते आणि सूक्ष्म हवामानात सुधारणा करते." }
+                    }
+                },
+                'ml': {
+                    page_title: "വിള പരിക്രമണ ആസൂത്രകൻ", main_title: "കർഷകന്റെ വിള പരിക്രമണ ആസൂത്രകൻ", subtitle: "നിങ്ങളുടെ അടുത്ത വിള ചക്രത്തിനായി മികച്ച ഉപദേശം നേടുക.", select_language_label: "ഭാഷ തിരഞ്ഞെടുക്കുക", select_crop_label: "നിങ്ങളുടെ നിലവിലെ വിള തിരഞ്ഞെടുക്കുക", get_advice_button: "ഉപദേശം നേടുക", analyzing_text: "വിശകലനം ചെയ്യുന്നു...", recommendation_prefix: "{crop}-നു ശേഷം, ഞങ്ങൾ ശുപാർശ ചെയ്യുന്നു:", timeline_intercrop: "ഇത് നിങ്ങളുടെ <strong>{crop}</strong>-നൊപ്പം ഉടൻതന്നെ ഇടവിളയായി കൃഷി ചെയ്യാം.", timeline_harvest: "<strong>{date}</strong>-നകം <strong>{crop}</strong> വിളവെടുക്കുക", timeline_wait: "<strong>{months} മാസം</strong> കാത്തിരിക്കുക", timeline_sow: "<strong>{date}</strong>-നോടടുത്ത് <strong>{crop}</strong> വിതയ്ക്കുക", card_duration: "കാലാവധി", card_water: "വെള്ളത്തിന്റെ ആവശ്യം", card_soil: "മണ്ണിലെ സ്വാധീനം", card_nutrients: "പോഷകങ്ങൾ", card_months: "മാസം", card_perennial: "ബഹുവർഷി", card_weather_title: "കാലാവസ്ഥാ അനുയോജ്യത (മോക്ക് ഡാറ്റ)", card_weather_desc: "നിലവിലെ കാലാവസ്ഥാ സാഹചര്യങ്ങൾ ഭൂമി ഒരുക്കുന്നതിന് അനുയോജ്യമാണെന്ന് തോന്നുന്നു.",
+                    terms: { "Low": "കുറവ്", "Medium": "ഇടത്തരം", "High": "ഉയർന്നത്", "Improves fertility": "ഫലഭൂയിഷ്ഠത മെച്ചപ്പെടുത്തുന്നു", "Improves soil cover": "മണ്ണിന്റെ ആവരണം മെച്ചപ്പെടുത്തുന്നു", "Prevents erosion": "മണ്ണൊലിപ്പ് തടയുന്നു", "Diversifies farm": "കൃഷിയിടം വൈവിധ്യവൽക്കരിക്കുന്നു", "Improves soil structure": "മണ്ണിന്റെ ഘടന മെച്ചപ്പെടുത്തുന്നു", "Nutrient intensive": "പോഷക സാന്ദ്രമായ", "Improves soil aeration": "മണ്ണിലെ വായുസഞ്ചാരം മെച്ചപ്പെടുത്തുന്നു", "Can deplete potassium": "പൊട്ടാസ്യം കുറയ്ക്കാൻ കഴിയും", "Maintains humidity": "ഈർപ്പം നിലനിർത്തുന്നു", "Natural pest control": "സ്വാഭാവിക കീട നിയന്ത്രണം", "Breaks pest cycles": "കീടങ്ങളുടെ ജീവിതചക്രം തകർക്കുന്നു", "Disease suppression": "രോഗത്തെ തടയുന്നു", "Improves soil tilth": "മണ്ണിന്റെ പാകത മെച്ചപ്പെടുത്തുന്നു", "Can increase soil acidity": "മണ്ണിന്റെ അമ്ലത്വം വർദ്ധിപ്പിക്കാം", "Weed suppression": "കളകളെ നിയന്ത്രിക്കുന്നു", "Efficient land use": "കാര്യക്ഷമമായ ഭൂവിനിയോഗം", "Nitrogen fixing": "നൈട്രജൻ ഉറപ്പിക്കൽ", "Adds biomass": "ബയോമാസ് ചേർക്കുന്നു", "Adds organic matter": "ജൈവാംശം ചേർക്കുന്നു", "Adds organic residue": "ജൈവാവശിഷ്ടങ്ങൾ ചേർക്കുന്നു", "Leaf litter enriches soil": "ഇലകൾ മണ്ണിനെ സമ്പുഷ്ടമാക്കുന്നു" },
+                    crops: {
+                        "Rice": { name: "നെല്ല് (മുണ്ടകൻ സീസൺ)", next_crop: "പയർവർഗ്ഗങ്ങൾ (ചെറുപയർ, ഉഴുന്ന്)", benefit: "അടുത്ത സീസണിലേക്ക് നൈട്രജൻ ഉറപ്പിക്കുകയും മണ്ണിന്റെ ഫലഭൂയിഷ്ഠത മെച്ചപ്പെടുത്തുകയും ചെയ്യുന്നു." },
+                        "Coconut": { name: "തെങ്ങ് (വെസ്റ്റ് കോസ്റ്റ് ടോൾ)", next_crop: "വാഴ അല്ലെങ്കിൽ പൈനാപ്പിൾ (ഇടവിള)", benefit: "കളകളെ നിയന്ത്രിക്കുന്നു, അധിക വരുമാനം നൽകുന്നു, സ്ഥലം കാര്യക്ഷമമായി ഉപയോഗിക്കുന്നു." },
+                        "Rubber": { name: "റബ്ബർ (RRII 105)", next_crop: "പയർവർഗ്ഗ ആവരണ വിളകൾ (മ്യൂക്കുണ)", benefit: "മണ്ണൊലിപ്പ് തടയുന്നു, മണ്ണിനെ നൈട്രജൻ കൊണ്ട് സമ്പുഷ്ടമാക്കുന്നു, കളകളെ നിയന്ത്രിക്കുന്നു." },
+                        "Black Pepper": { name: "കുരുമുളക് (പന്നിയൂർ-1)", next_crop: "കവുങ്ങ് (താങ്ങായി)", benefit: "കവുങ്ങ് സ്വാഭാവിക താങ്ങും തണലും നൽകുന്നു, ഒരു ബഹുതല വിള സമ്പ്രദായം സൃഷ്ടിക്കുന്നു." },
+                        "Banana": { name: "വാഴ (നേന്ത്രൻ)", next_crop: "ഇഞ്ചി അല്ലെങ്കിൽ മഞ്ഞൾ", benefit: "രോഗചക്രങ്ങൾ തകർക്കാൻ സഹായിക്കുകയും മണ്ണിന്റെ ജൈവാംശം വർദ്ധിപ്പിക്കുകയും ചെയ്യുന്നു." },
+                        "Ginger": { name: "ഇഞ്ചി (റിയോ ഡി ജനീറോ)", next_crop: "വൻപയർ അല്ലെങ്കിൽ മറ്റ് പയർവർഗ്ഗങ്ങൾ", benefit: "ഇഞ്ചി വിള ഉപയോഗിക്കുന്ന നൈട്രജൻ പുനഃസ്ഥാപിക്കുന്നു." },
+                        "Turmeric": { name: "മഞ്ഞൾ (പ്രതിഭ)", next_crop: "ചോളം", benefit: "മഞ്ഞൾ വിളവെടുപ്പിന് ശേഷം അവശേഷിക്കുന്ന പോഷകങ്ങൾ ചോളം ഫലപ്രദമായി ഉപയോഗിക്കുന്നു." },
+                        "Tapioca": { name: "മരച്ചീനി (കപ്പ) (ശ്രീ വിജയ എച്ച്-226)", next_crop: "പയർവർഗ്ഗങ്ങൾ (ചെറുപയർ)", benefit: "പോഷകങ്ങൾ കൂടുതൽ ആവശ്യമുള്ള മരച്ചീനി വിളയ്ക്ക് ശേഷം മണ്ണിന്റെ ഫലഭൂയിഷ്ഠത പുനഃസ്ഥാപിക്കുന്നു." },
+                        "Cardamom": { name: "ഏലം (മലബാർ)", next_crop: "തണൽ നൽകുന്ന മരങ്ങൾ (ഇടവിള)", benefit: "സന്തുലിതമായ ഒരു ആവാസവ്യവസ്ഥ നിലനിർത്തുകയും ഏലത്തിന് ആവശ്യമായ തണൽ നൽകുകയും ചെയ്യുന്നു." },
+                        "Bitter Gourd": { name: "പാവൽ (പ്രീതി)", next_crop: "ചെണ്ടുമല്ലി", benefit: "ചെണ്ടുമല്ലിയുടെ വേരുകൾ പാവലിന് സാധാരണയായി കാണുന്ന കീടമായ നിമവിരകളെ നിയന്ത്രിക്കുന്ന സംയുക്തങ്ങൾ പുറത്തുവിടുന്നു." },
+                        "Okra": { name: "വെണ്ട (അർക്ക അനാമിക)", next_crop: "ബീൻസ് (ബുഷ് ബീൻസ്)", benefit: "ബീൻസ് നൈട്രജൻ ഉറപ്പിക്കുന്നു, ഇത് അടുത്ത വെണ്ട കൃഷിക്ക് പ്രയോജനകരമാണ്." },
+                        "Tomato": { name: "തക്കാളി (ശക്തി)", next_crop: "ഉള്ളി അല്ലെങ്കിൽ വെളുത്തുള്ളി", benefit: "തക്കാളിയെ ബാധിക്കുന്ന സാധാരണ മണ്ണിലൂടെ പകരുന്ന രോഗങ്ങളെ നിയന്ത്രിക്കാൻ സഹായിക്കുന്നു." },
+                        "Cucumber": { name: "വെള്ളരി (അരുണിമ)", next_crop: "മുള്ളങ്കി", benefit: "മുള്ളങ്കിക്ക് ആഴത്തിലുള്ള വേരുകളുണ്ട്, ഇത് ഉറച്ച മണ്ണിനെ അയവുള്ളതാക്കാനും വായുസഞ്ചാരം നൽകാനും സഹായിക്കുന്നു." },
+                        "Elephant Foot Yam": { name: "ചേന (ഗജേന്ദ്ര)", next_crop: "ചെറുപയർ", benefit: "അടുത്ത ചേന സീസണിന് മുമ്പ് നൈട്രജൻ ഉറപ്പിക്കുന്ന ഒരു ഹ്രസ്വകാല പയർവർഗ്ഗ വിള." },
+                        "Pineapple": { name: "പൈനാപ്പിൾ (ക്യൂ)", next_crop: "പയർവർഗ്ഗങ്ങൾ (ആവരണ വിളയായി)", benefit: "മണ്ണൊലിപ്പ് തടയുകയും പൈനാപ്പിൾ ചക്രങ്ങൾക്കിടയിൽ മണ്ണിൽ നൈട്രജൻ ചേർക്കുകയും ചെയ്യുന്നു." },
+                        "Jackfruit": { name: "പ്ലാവ് (ഓൾ സീസൺ)", next_crop: "ആവരണ വിളകൾ (കലോപോഗോണിയം)", benefit: "കളകളെ ഫലപ്രദമായി നിയന്ത്രിക്കുകയും മരങ്ങൾക്ക് ചുറ്റുമുള്ള മണ്ണിനെ സമ്പുഷ്ടമാക്കുകയും ചെയ്യുന്നു." },
+                        "Mango": { name: "മാവ് (നീലം)", next_crop: "പച്ചക്കറികൾ (ആദ്യ വർഷങ്ങളിൽ)", benefit: "മരങ്ങൾ വളരുന്നതിന് മുമ്പ് നേരത്തെയുള്ള വരുമാനം നൽകുകയും ഭൂമി കാര്യക്ഷമമായി ഉപയോഗിക്കുകയും ചെയ്യുന്നു." },
+                        "Coffee": { name: "കാപ്പി (റോബസ്റ്റ)", next_crop: "കുരുമുളക് വള്ളികൾ", benefit: "കൂടുതൽ വരുമാനത്തിനായി വൈവിധ്യമാർന്ന, ബഹുനില വിള സമ്പ്രദായം സൃഷ്ടിക്കുന്നു." },
+                        "Arecanut": { name: "കവുങ്ങ് (മംഗള)", next_crop: "വാഴ അല്ലെങ്കിൽ കൊക്കോ (ഇടവിള)", benefit: "അധിക വരുമാനത്തിനായി ഇടത്തരം സ്ഥലം ഉപയോഗിക്കുകയും സൂക്ഷ്മ കാലാവസ്ഥ മെച്ചപ്പെടുത്തുകയും ചെയ്യുന്നു." }
+                    }
+                }
+            };
+
+            let currentLang = 'en';
+
+            const getTranslatedText = (key) => translations[currentLang][key] || key;
+
+            const populateCrops = () => {
+                currentCropSelect.innerHTML = ''; // Clear existing options
+                const translatedCrops = translations[currentLang].crops;
+                for (const key in translatedCrops) {
+                    const option = document.createElement('option');
+                    option.value = key; // Use the English key as the value for consistency
+                    option.textContent = translatedCrops[key].name;
+                    currentCropSelect.appendChild(option);
+                }
+            };
+
+            const changeLanguage = (lang) => {
+                currentLang = lang;
+                document.querySelectorAll('[data-key]').forEach(element => {
+                    const key = element.getAttribute('data-key');
+                    const translation = getTranslatedText(key);
+                    if (translation) {
+                        if (element.tagName === 'TITLE') {
+                            document.title = translation;
+                        } else {
+                            element.textContent = translation;
+                        }
+                    }
+                });
+                populateCrops();
+                recommendationCard.classList.add('hidden'); // Hide recommendation on language change
+            };
+
+            const calculateTimeline = (rule, cropKey) => {
+                const currentDate = new Date();
+                const harvestDate = new Date(currentDate);
+                harvestDate.setMonth(currentDate.getMonth() + rule.duration_months);
+                const sowDate = new Date(harvestDate);
+                sowDate.setMonth(harvestDate.getMonth() + rule.gap_months);
+                const harvestMonth = harvestDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+                const sowMonth = sowDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+                const currentCropName = translations[currentLang].crops[cropKey].name.split(' ')[0];
+                const nextCropName = translations[currentLang].crops[cropKey].next_crop;
+
+                if (rule.duration_months === 0) {
+                    return getTranslatedText('timeline_intercrop').replace('{crop}', currentCropName);
+                }
+
+                let timeline = getTranslatedText('timeline_harvest').replace('{crop}', currentCropName).replace('{date}', harvestMonth);
+                timeline += ` → ${getTranslatedText('timeline_wait').replace('{months}', rule.gap_months)}`;
+                timeline += ` → ${getTranslatedText('timeline_sow').replace('{crop}', nextCropName).replace('{date}', sowMonth)}`;
+
+                return timeline;
+            };
+
+            const displayRecommendation = (cropKey) => {
+                const rule = cropData[cropKey];
+                const translatedRule = translations[currentLang].crops[cropKey];
+                const translatedTerms = translations[currentLang].terms;
+
+                const timeline = calculateTimeline(rule, cropKey);
+                const waterColors = { "Low": "text-blue-500", "Medium": "text-yellow-600", "High": "text-red-500" };
+
+                recommendationCard.innerHTML = `
+                    <div class="text-center animate-fade-in-up">
+                        <p class="text-gray-500">${getTranslatedText('recommendation_prefix').replace('{crop}', translatedRule.name)}</p>
+                        <h2 class="text-4xl font-extrabold text-green-600 my-2">${translatedRule.next_crop}</h2>
+                        <p class="text-lg text-gray-700 font-medium">${translatedRule.benefit}</p>
+                        
+                        <div class="mt-6 bg-green-500 text-white rounded-lg p-4 text-center font-semibold text-base md:text-lg">
+                            ${timeline}
+                        </div>
+
+                        <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p class="text-sm font-bold text-gray-500">${getTranslatedText('card_duration')}</p>
+                                <p class="text-lg font-semibold">${rule.duration_months > 0 ? rule.duration_months + ' ' + getTranslatedText('card_months') : getTranslatedText('card_perennial')}</p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p class="text-sm font-bold text-gray-500">${getTranslatedText('card_water')}</p>
+                                <p class="text-lg font-semibold ${waterColors[rule.water_requirement]}">${translatedTerms[rule.water_requirement]}</p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p class="text-sm font-bold text-gray-500">${getTranslatedText('card_soil')}</p>
+                                <p class="text-lg font-semibold">${translatedTerms[rule.soil_impact]}</p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p class="text-sm font-bold text-gray-500">${getTranslatedText('card_nutrients')}</p>
+                                <p class="text-lg font-semibold">${translatedTerms[rule.nutrient_contribution]}</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 bg-blue-50 rounded-lg p-4 text-left">
+                            <h4 class="font-bold text-blue-800 mb-2">${getTranslatedText('card_weather_title')}</h4>
+                            <div class="flex items-center gap-4">
+                                <img src="https://openweathermap.org/img/wn/04d@2x.png" alt="Weather icon" class="w-12 h-12">
+                                <div>
+                                    <p class="font-semibold text-gray-700">29.5°C with overcast clouds</p>
+                                    <p class="text-sm text-gray-600">${getTranslatedText('card_weather_desc')}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                recommendationCard.classList.remove('hidden');
+            };
+
+            advisorForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const selectedCropKey = currentCropSelect.value;
+                
+                recommendationCard.innerHTML = `<p class="text-center text-gray-500">${getTranslatedText('analyzing_text')}</p>`;
+                recommendationCard.classList.remove('hidden');
+
+                setTimeout(() => {
+                    if (selectedCropKey) {
+                        displayRecommendation(selectedCropKey);
+                    }
+                }, 500);
+            });
+            
+            languageSelector.addEventListener('change', (event) => {
+                changeLanguage(event.target.value);
+            });
+
+            // Initial setup on page load
+            changeLanguage('en');
+        });
+    </script>
+</body>
+</html> 

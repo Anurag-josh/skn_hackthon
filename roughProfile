@@ -1,0 +1,737 @@
+document.addEventListener('DOMContentLoaded', () => {
+    const leftSidebar = document.getElementById('left-sidebar');
+    const rightSidebar = document.getElementById('right-sidebar');
+    const menuToggleBtn = document.getElementById('menu-toggle-btn');
+    const profileToggleBtn = document.getElementById('profile-toggle-btn');
+    const overlay = document.getElementById('overlay');
+    const dashboardContent = document.getElementById('dashboard-content');
+    const userAvatar = document.getElementById('user-avatar');
+    //25,000
+
+    const farmerId = window.farmerId;
+    if (!farmerId) {
+        window.location.href = '/login';
+        return;
+    }
+
+    function initializeSmartCalendar() {
+        const cropSelect = document.getElementById('crop-select');
+        const sowingDateInput = document.getElementById('sowing-date');
+        const generateBtn = document.getElementById('generate-btn');
+        const calendarBody = document.getElementById('calendar-body');
+        const monthYearDisplay = document.getElementById('month-year-display');
+        const prevMonthBtn = document.getElementById('prev-month-btn');
+        const nextMonthBtn = document.getElementById('next-month-btn');
+        const todayBtn = document.getElementById('today-btn');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const buttonText = document.getElementById('button-text');
+        const calendarCard = document.getElementById('calendar-card');
+        const placeholderCard = document.getElementById('placeholder-card');
+        const dayModal = document.getElementById('day-modal');
+        const modalDate = document.getElementById('modal-date');
+        const modalEventList = document.getElementById('modal-event-list');
+        const addEventForm = document.getElementById('add-event-form');
+        const eventDateInput = document.getElementById('event-date-input');
+        const eventTitleInput = document.getElementById('event-title-input');
+        const eventTypeSelect = document.getElementById('event-type-select');
+        const taskListCard = document.getElementById('task-list-card');
+
+        let currentDate = new Date();
+        let generatedEvents = [];
+        const eventColors = {
+            'Fertilizer': { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200', dot: 'bg-green-500' },
+            'Irrigation': { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200', dot: 'bg-blue-500' },
+            'Pest Control': { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200', dot: 'bg-red-500' },
+            'Weeding': { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200', dot: 'bg-yellow-500' },
+            'Harvesting': { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200', dot: 'bg-purple-500' },
+            'Note': { bg: 'bg-gray-200', text: 'text-gray-900', border: 'border-gray-300', dot: 'bg-gray-500' },
+            'Default': { bg: 'bg-gray-200', text: 'text-gray-900', border: 'border-gray-300', dot: 'bg-gray-500' }
+        };
+        const API_BASE_URL = '';
+
+        function renderTaskList(events) {
+            const taskListBody = document.getElementById('task-list-body');
+            taskListBody.innerHTML = '';
+            const sortedEvents = [...events].sort((a, b) => new Date(a.date) - new Date(b.date));
+            if (sortedEvents.length === 0) {
+                taskListBody.innerHTML = `<p class="text-gray-500">No tasks to display.</p>`;
+                return;
+            }
+            sortedEvents.forEach((event, index) => {
+                const colorInfo = eventColors[event.type] || eventColors['Default'];
+                const eventDate = new Date(event.date + 'T00:00:00');
+                const formattedDate = eventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                const listItemHTML = `
+                    <div class="flex items-start gap-4 p-3 border-l-4 ${colorInfo.border} ${colorInfo.bg} rounded-r-lg">
+                        <div class="flex-shrink-0 flex flex-col items-center justify-center pt-1">
+                             <span class="w-3 h-3 rounded-full ${colorInfo.dot}"></span>
+                             <span class="text-xs font-bold text-gray-500 mt-1">STEP ${index + 1}</span>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="flex justify-between items-baseline">
+                                <p class="font-bold text-base ${colorInfo.text}">${event.title}</p>
+                                <p class="text-sm font-medium text-gray-700">${formattedDate}</p>
+                            </div>
+                            ${event.description ? `<p class="text-sm text-gray-600 mt-1">${event.description}</p>` : ''}
+                        </div>
+                    </div>`;
+                taskListBody.innerHTML += listItemHTML;
+            });
+        }
+
+        function renderCalendar() {
+            calendarBody.innerHTML = '';
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            monthYearDisplay.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
+            const firstDayOfMonth = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const today = new Date();
+            for (let i = 0; i < firstDayOfMonth; i++) {
+                calendarBody.innerHTML += `<div class="border rounded-lg bg-gray-50/50"></div>`;
+            }
+            for (let day = 1; day <= daysInMonth; day++) {
+                const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+                const todayClass = isToday ? 'border-green-500 bg-green-50' : 'border-gray-200';
+                const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayEvents = generatedEvents.filter(e => e.date === dateString);
+                let eventsHTML = '';
+                dayEvents.forEach(event => {
+                    const colorInfo = eventColors[event.type] || eventColors['Default'];
+                    const colorClass = `${colorInfo.bg} ${colorInfo.text} ${colorInfo.border}`;
+                    eventsHTML += `<div class="text-sm font-medium px-2 py-0.5 border rounded-md mb-1 truncate ${colorClass}">${event.title}</div>`;
+                });
+                calendarBody.innerHTML += `
+                    <div class="relative h-24 sm:h-32 border rounded-lg p-1.5 ${todayClass} calendar-cell cursor-pointer hover:bg-gray-100 transition-colors" data-date="${dateString}" onclick="openDayModal('${dateString}')">
+                        <span class="text-sm font-medium ${isToday ? 'text-green-600' : 'text-gray-700'}">${day}</span>
+                        <div class="absolute bottom-1.5 left-1.5 right-1.5">${eventsHTML}</div>
+                    </div>`;
+            }
+        }
+
+        window.openDayModal = function(dateString) {
+            const date = new Date(dateString + 'T00:00:00');
+            modalDate.textContent = date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            eventDateInput.value = dateString;
+            const dayEvents = generatedEvents.filter(e => e.date === dateString);
+            modalEventList.innerHTML = '';
+            if (dayEvents.length > 0) {
+                dayEvents.forEach((event, index) => {
+                    const colorInfo = eventColors[event.type] || eventColors['Default'];
+                    const colorClass = `${colorInfo.bg} ${colorInfo.text} ${colorInfo.border}`;
+                    modalEventList.innerHTML += `
+                        <div class="flex justify-between items-center p-2 rounded-md ${colorClass}">
+                            <span>${event.title}</span>
+                            <button onclick="deleteEvent('${dateString}', ${index})" class="p-1 rounded-full hover:bg-red-200">
+                                <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>`;
+                });
+            } else {
+                modalEventList.innerHTML = '<p class="text-gray-500">No tasks scheduled for this day.</p>';
+            }
+            dayModal.classList.remove('hidden');
+        };
+
+        window.closeDayModal = function() { dayModal.classList.add('hidden'); };
+
+        window.deleteEvent = function(dateString, eventIndexInDay) {
+            let count = -1;
+            const globalIndex = generatedEvents.findIndex(event => {
+                if (event.date === dateString) {
+                    count++;
+                    return count === eventIndexInDay;
+                }
+                return false;
+            });
+            if (globalIndex > -1) {
+                generatedEvents.splice(globalIndex, 1);
+                renderTaskList(generatedEvents);
+                renderCalendar();
+                window.closeDayModal();
+            }
+        };
+
+        // Populate immediately from embedded seed data if available
+        try {
+            if (Array.isArray(window.SEED_CROPS) && window.SEED_CROPS.length > 0) {
+                cropSelect.innerHTML = '<option value="">-- Choose a crop --</option>';
+                window.SEED_CROPS.forEach(crop => {
+                    const option = document.createElement('option');
+                    option.value = crop.crop_id;
+                    option.textContent = `${crop.crop_name} (${crop.variety})`;
+                    cropSelect.appendChild(option);
+                });
+            }
+        } catch (e) {}
+
+        // Try fetching from API in background; override if successful
+        (async () => {
+            try {
+                const response = await fetch(`/api/crops`);
+                if (!response.ok) throw new Error('Network error, could not fetch crops.');
+                const crops = await response.json();
+                if (Array.isArray(crops) && crops.length > 0) {
+                    cropSelect.innerHTML = '<option value="">-- Choose a crop --</option>';
+                    crops.forEach(crop => {
+                        const option = document.createElement('option');
+                        option.value = crop.crop_id;
+                        option.textContent = `${crop.crop_name} (${crop.variety})`;
+                        cropSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.warn('Using embedded seed crops due to API error.', error?.message || error);
+            }
+        })();
+
+        generateBtn.addEventListener('click', async () => {
+            const crop_id = cropSelect.value;
+            const sowing_date = sowingDateInput.value;
+            if (!crop_id || !sowing_date) {
+                alert('Please select a crop and a sowing date.');
+                return;
+            }
+            buttonText.textContent = 'Generating...';
+            loadingSpinner.classList.remove('hidden');
+            generateBtn.disabled = true;
+            try {
+                const response = await fetch(`/api/generate-calendar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ crop_id, sowing_date })
+                });
+                if (!response.ok) throw new Error('Network response was not ok');
+                generatedEvents = await response.json();
+                currentDate = new Date(sowing_date + 'T00:00:00');
+                placeholderCard.classList.add('hidden');
+                taskListCard.classList.remove('hidden');
+                calendarCard.classList.remove('hidden');
+                renderTaskList(generatedEvents);
+                renderCalendar();
+            } catch (error) {
+                console.error('Failed to generate calendar:', error);
+                alert('Could not generate schedule. Please try again.');
+            } finally {
+                buttonText.textContent = 'Generate Schedule';
+                loadingSpinner.classList.add('hidden');
+                generateBtn.disabled = false;
+            }
+        });
+
+        addEventForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newEvent = {
+                date: eventDateInput.value,
+                title: eventTitleInput.value,
+                type: eventTypeSelect.value,
+                description: 'User added task.'
+            };
+            generatedEvents.push(newEvent);
+            renderTaskList(generatedEvents);
+            renderCalendar();
+            window.closeDayModal();
+            eventTitleInput.value = '';
+        });
+
+        prevMonthBtn.addEventListener('click', () => {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            renderCalendar();
+        });
+
+        nextMonthBtn.addEventListener('click', () => {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            renderCalendar();
+        });
+
+        todayBtn.addEventListener('click', () => {
+            currentDate = new Date();
+            renderCalendar();
+        });
+    }
+
+    let farmerData = {};
+
+    async function initializeDashboard() {
+        try {
+            const response = await fetch(`/api/farmer-data/${farmerId}`);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || (window.t && window.t.couldNotFetchFarmerData) || 'Could not fetch farmer data');
+            }
+            farmerData = await response.json();
+
+            if (!farmerData.name) {
+                window.location.href = '/onboarding';
+                return;
+            }
+
+            populateDashboard();
+
+            const latestFarmDetails = farmerData.farmDetails[farmerData.farmDetails.length - 1];
+            
+            if (farmerData.location) {
+                // Fetching weather and forecast data and then checking for alerts
+                fetchAndRenderTodayWeather(farmerData.location);
+                await fetchAndRenderForecast(farmerData.location);
+            }
+        } catch (error) {
+            dashboardContent.innerHTML = `<p class="text-red-500 font-semibold">${(window.t && window.t.errorTryLoggingInAgain) || 'Error: Please try logging in again.'}</p>`;
+        }
+    }
+
+    function populateDashboard() {
+        userAvatar.src = `https://placehold.co/40x40/28A745/FFFFFF?text=${farmerData.name.charAt(0)}`;
+        renderLeftSidebar();
+        renderRightSidebar();
+        renderMainContent();
+    }
+
+    function renderLeftSidebar() {
+        leftSidebar.innerHTML = `
+            <div class="text-2xl font-bold mb-10 px-2">Krishi Sakhi</div>
+            <nav class="flex-grow">
+                <ul>
+                    <li class="mb-2"><a href="#" class="flex items-center p-3 rounded-lg transition-colors bg-[#D4EDDA] text-[#155724] border-l-4 border-[#28A745]"><span class="material-icons mr-3">dashboard</span>${(window.t && window.t.dashboard) || 'Dashboard'}</a></li>
+                    <li class="mb-2"><a href="/diagnosis" class="flex items-center p-3 rounded-lg transition-colors hover:bg-gray-700"><span class="material-icons mr-3">analytics</span>${(window.t && window.t.diagnosis) || 'Diagnosis'}</a></li>
+                    <li class="mb-2"><a href="/labs" class="flex items-center p-3 rounded-lg transition-colors hover:bg-gray-700"><span class="material-icons mr-3">grass</span>${(window.t && window.t.labs) || 'Labs'}</a></li>
+                    <li class="mb-2"><a href="/weather" class="flex items-center p-3 rounded-lg transition-colors hover:bg-gray-700"><span <span class="material-icons mr-3">wb_sunny</span>${(window.t && window.t.weather) || 'Weather'}</a></li>
+                    <li class="mb-2"><a href="/marketplace" class="flex items-center p-3 rounded-lg transition-colors hover:bg-gray-700"><span class="material-icons mr-3">account_balance_wallet</span>${(window.t && window.t.marketplace) || 'Marketplace'}</a></li>
+                    <li class="mb-2"><a href="/activity/log" class="flex items-center p-3 rounded-lg transition-colors hover:bg-gray-700"><span class="material-icons mr-3">timeline</span>${(window.t && window.t.activityTracker) || 'Activity Tracker'}</a></li>
+
+                    <li class="mb-2"><a href="/history" class="flex items-center p-3 rounded-lg transition-colors hover:bg-gray-700"><span class="material-icons mr-3">history</span>${(window.t && window.t.history) || 'History'}</a></li>
+
+                    <li><a href="/chatbot" class="flex items-center p-3 rounded-lg transition-colors hover:bg-gray-700"><span class="material-icons mr-3">auto_awesome</span>${(window.t && window.t.chatbot) || 'Chatbot'}</a></li>
+                    <li><a href="/chat" class="flex items-center p-3 rounded-lg transition-colors hover:bg-gray-700"><span class="material-icons mr-3">groups</span>${(window.t && window.t.community) || (window.t && window.t.chat) || 'Community'}</a></li>
+                    <li><a href="/rotation" class="flex items-center p-3 rounded-lg transition-colors hover:bg-gray-700"><span class="material-icons mr-3">groups</span>${(window.t && window.t.rotationPlanner) || (window.t && window.t.rotation) || 'Rotation Planner'}</a></li>
+                    <li><a href="/fertilizerMarketplace" class="flex items-center p-3 rounded-lg transition-colors hover:bg-gray-700"><span class="material-icons mr-3">storefront</span>${(window.t && window.t.fertilizerMarketplace) || (window.t && window.t.marketplace) || 'Fertilizer Marketplace'}</a></li>
+
+                </ul>
+            </nav>
+            <div><a href="/" id="logout-btn" class="flex items-center p-3 rounded-lg transition-colors hover:bg-gray-700"><span class="material-icons mr-3">logout</span>${(window.t && window.t.logout) || 'Logout'}</a></div>
+        `;
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            window.location.href = '/logout';
+        });
+    }
+
+    function renderRightSidebar() {
+        const latestFarmDetails = farmerData.farmDetails[farmerData.farmDetails.length - 1] || {};
+        rightSidebar.innerHTML = `
+            <div class="p-6 flex flex-col h-full">
+                <div class="flex justify-between items-center mb-8">
+                    <h3 class="font-bold text-xl">${(window.t && window.t.profile) || 'Profile'}</h3>
+                    <button id="close-profile-btn" class="text-gray-500"><span class="material-icons">close</span></button>
+                </div>
+                <div class="flex flex-col items-center text-center border-b pb-6">
+                    <img alt="User avatar" class="w-20 h-20 rounded-full mb-4" src="${userAvatar.src}" />
+                    <h4 class="font-semibold text-lg">${farmerData.name}</h4>
+                    <p class="text-sm text-gray-500">${farmerData.location}</p>
+                </div>
+                <div class="mt-8">
+                    <h3 class="font-bold text-xl mb-4">${(window.t && window.t.currentFarmDetails) || 'Current Farm Details'}</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><strong>${(window.t && window.t.landSize) || 'Land Size'}:</strong> ${latestFarmDetails.landSize || 'N/A'}</li>
+                        <li><strong>${(window.t && window.t.mainCrop) || 'Main Crop'}:</strong> ${latestFarmDetails.mainCrop || 'N/A'}</li>
+                        <li><strong>${(window.t && window.t.irrigation) || 'Irrigation'}:</strong> ${latestFarmDetails.irrigationMethod || 'N/A'}</li>
+                    </ul>
+                </div>
+                <div class="mt-4 flex-grow overflow-y-auto">
+                    <h3 class="font-bold text-lg mb-2">${(window.t && window.t.previousCrops) || 'Previous Crops'}</h3>
+                    <ul class="space-y-1 text-sm text-gray-600">
+                        ${farmerData.farmDetails.slice(0, -1).map(fd => `<li>- ${fd.mainCrop}</li>`).join('') || `<li>${(window.t && window.t.noPreviousCrops) || 'No previous crops logged.'}</li>`}
+                    </ul>
+                </div>
+            </div>
+        `;
+        document.getElementById('close-profile-btn').addEventListener('click', toggleRightSidebar);
+    }
+
+    function renderMainContent() {
+        const latestFarmDetails = farmerData.farmDetails[farmerData.farmDetails.length - 1] || {};
+        dashboardContent.innerHTML = `
+            <div id="alert-container" class="mb-4"></div>
+            <section>
+                <h2 class="text-xl font-semibold mb-4">${(window.t && window.t.summary) || 'Summary'}</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-gray-50 p-6 rounded-2xl">
+                        <div><p class="text-gray-500">${latestFarmDetails.mainCrop || ((window.t && window.t.mainCrop) || 'Main Crop')}</p><p class="text-sm text-gray-400">${(window.t && window.t.totalProduction) || 'Total production'}</p></div>
+                        <p class="text-3xl font-bold mt-2">125 <span class="text-lg font-medium">${(window.t && window.t.tons) || 'Tons'}</span></p>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-2xl">
+                        <div><p class="text-gray-500">${(window.t && window.t.targetProfit) || 'Target Profit'}</p><p class="text-sm text-gray-400">${(window.t && window.t.thisSeason) || 'This Season'}</p></div>
+                        <p class="text-3xl font-bold mt-2">₹2,50,000</p>
+                    </div>
+                    <div class="col-span-1 md:col-span-2 bg-gray-50 p-6 rounded-2xl" id="weather-container">
+                        <p class="text-gray-500">${(window.t && window.t.loadingWeather) || "Loading today's weather..."}</p>
+                    </div>
+                </div>
+            </section>
+            <section class="mt-8">
+                <h2 class="text-xl font-semibold mb-4">${(window.t && window.t.manageYourFarm) || 'Manage your farm'}</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 rounded-2xl overflow-hidden h-64 lg:h-auto"><img alt="Cornfield" class="w-full h-full object-cover" src="https://images.pexels.com/photos/18720483/pexels-photo-18720483.jpeg"/></div>
+                    <div class="grid grid-cols-2 gap-4" id="forecast-container">
+                        <p class="col-span-2 text-gray-500 text-center">${(window.t && window.t.loadingForecast) || 'Loading 4-day forecast...'}</p>
+                    </div>
+                </div>
+            </section>
+            <section id="smart-calendar-root" class="mt-8">
+                <style>
+                    .calendar-cell { aspect-ratio: 1 / 1; }
+                    @media (min-width: 640px) { .calendar-cell { aspect-ratio: auto; } }
+                </style>
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex items-center gap-4 mb-5">
+                        <div class="bg-green-100 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 002-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <div>
+                            <h1 class="text-xl sm:text-2xl font-bold text-gray-800">Create Your Schedule</h1>
+                            <p class="text-sm text-gray-500">Get a personalized farm calendar in seconds.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label for="crop-select" class="block text-sm font-medium text-gray-700 mb-2">1. Select Your Crop</label>
+                            <select id="crop-select" class="w-full p-3 text-base border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500">
+                                <option>Loading crops...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="sowing-date" class="block text-sm font-medium text-gray-700 mb-2">2. Enter Sowing Date</label>
+                            <input type="date" id="sowing-date" class="w-full p-3 text-base border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500">
+                        </div>
+                        <div class="self-end">
+                            <button id="generate-btn" class="w-full flex items-center justify-center bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition">
+                                <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <span id="button-text">Generate Schedule</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="task-list-card" class="bg-white rounded-xl shadow-lg p-6 hidden">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Your Step-by-Step Schedule</h2>
+                    <div id="task-list-body" class="space-y-4"></div>
+                </div>
+
+                <div id="calendar-card" class="bg-white rounded-xl shadow-lg p-4 sm:p-6 hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 id="month-year-display" class="text-xl font-bold text-gray-800"></h2>
+                        <div class="flex items-center gap-2">
+                            <button id="today-btn" class="text-sm font-medium text-gray-600 hover:text-green-600 px-3 py-1.5 rounded-md hover:bg-gray-100">Today</button>
+                            <button id="prev-month-btn" class="p-2 rounded-full hover:bg-gray-100"><svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
+                            <button id="next-month-btn" class="p-2 rounded-full hover:bg-gray-100"><svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1 text-center text-sm font-semibold text-gray-400 mb-2">
+                        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                    </div>
+                    <div id="calendar-body" class="grid grid-cols-7 gap-1"></div>
+                </div>
+                
+                <div id="placeholder-card" class="text-center py-16 px-6 bg-white rounded-xl shadow-lg border-2 border-dashed border-gray-200">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 002-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <h3 class="mt-2 text-lg font-medium text-gray-900">Your schedule will appear here</h3>
+                    <p class="mt-1 text-sm text-gray-500">Select a crop and date above to get started.</p>
+                </div>
+
+                <div id="day-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
+                    <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 id="modal-date" class="text-xl font-bold text-gray-800"></h3>
+                            <button onclick="closeDayModal()" class="p-2 rounded-full hover:bg-gray-200"><svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                        </div>
+                        <div id="modal-event-list" class="space-y-2 mb-6"></div>
+                        <div class="border-t pt-4">
+                            <h4 class="text-lg font-semibold text-gray-700 mb-2">Add a New Task or Note</h4>
+                            <form id="add-event-form">
+                                <input type="hidden" id="event-date-input">
+                                <input id="event-title-input" type="text" placeholder="e.g., Bought seeds" class="w-full p-2 border border-gray-300 rounded-md mb-2" required>
+                                <select id="event-type-select" class="w-full p-2 border border-gray-300 rounded-md mb-4">
+                                    <option value="Note">Note</option>
+                                    <option value="Fertilizer">Fertilizer</option>
+                                    <option value="Irrigation">Irrigation</option>
+                                    <option value="Pest Control">Pest Control</option>
+                                </select>
+                                <button type="submit" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition">Add Event</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        `;
+        try { initializeSmartCalendar(); } catch (e) {}
+    }
+    
+    // NEW FUNCTION: Fetches the crop calendar and stores it in farmerData
+    async function fetchAndSetCalendar(cropName) {
+        try {
+            const calendarResponse = await fetch(`/api/crop-calendar/${cropName}`);
+            if (!calendarResponse.ok) throw new Error('Calendar not found');
+            const calendarData = await calendarResponse.json();
+            farmerData.cropCalendar = calendarData;
+        } catch (error) {
+            console.error('Error fetching calendar data for alerts:', error);
+            farmerData.cropCalendar = null;
+        }
+    }
+
+    async function fetchAndRenderCalendar(cropName, sowingDate) {
+        try {
+            const calendarResponse = await fetch(`/api/crop-calendar/${cropName}`);
+            if (!calendarResponse.ok) throw new Error('Calendar not found');
+            const calendarData = await calendarResponse.json();
+            renderCropCalendar(calendarData.activities, new Date(sowingDate));
+        } catch (error) {
+            const calendarContainer = document.getElementById('calendar-container');
+            if (calendarContainer) {
+                const msg = (window.t && window.t.noCalendarFor) || 'No crop calendar available for';
+                calendarContainer.innerHTML = `<p class="p-4 bg-yellow-100 text-yellow-800 rounded-lg">${msg} ${cropName}.</p>`;
+            }
+        }
+    }
+    
+    function renderCropCalendar(activities, initialSowingDate) {
+        const calendarContainer = document.getElementById('calendar-container');
+        if (!calendarContainer) return;
+
+        let calendarHTML = `
+            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <h3 class="text-xl font-semibold mb-4">${((window.t && window.t.yourCropCalendarFor) || 'Your Crop Calendar for')} ${farmerData.farmDetails[farmerData.farmDetails.length - 1].mainCrop}</h3>
+                <div class="mb-4">
+                    <label for="sowing-date" class="block text-sm font-medium text-gray-700">${(window.t && window.t.changeSowingDate) || 'Change Sowing Date:'}</label>
+                    <input type="date" id="sowing-date" class="mt-1 block w-full md:w-1/3 p-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div id="calendar-activities" class="space-y-4"></div>
+            </div>
+        `;
+        calendarContainer.innerHTML = calendarHTML;
+        
+        const dateInput = document.getElementById('sowing-date');
+        const activitiesContainer = document.getElementById('calendar-activities');
+
+        function updateCalendarView(currentSowingDate) {
+            let activitiesHTML = '';
+            activities.forEach(activity => {
+                const startDate = new Date(currentSowingDate);
+                startDate.setDate(startDate.getDate() + activity.start_day);
+
+                const endDate = new Date(currentSowingDate);
+                endDate.setDate(endDate.getDate() + activity.end_day);
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                startDate.setHours(0, 0, 0, 0);
+                endDate.setHours(0, 0, 0, 0);
+                
+                const isActive = today >= startDate && today <= endDate;
+
+                activitiesHTML += `
+                    <div class="p-4 rounded-lg ${isActive ? 'bg-green-100 border-l-4 border-green-500' : 'bg-gray-50'}">
+                        <div class="flex justify-between items-center">
+                            <p class="font-bold">${activity.stage}</p>
+                            <p class="text-sm text-gray-600">${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</p>
+                        </div>
+                        <p class="mt-2 text-sm">${activity.description}</p>
+                        <p class="mt-1 text-sm font-semibold text-red-600">${activity.critical_info || ''}</p>
+                    </div>
+                `;
+            });
+            activitiesContainer.innerHTML = activitiesHTML;
+        }
+
+        dateInput.valueAsDate = initialSowingDate;
+        updateCalendarView(initialSowingDate);
+        
+        dateInput.addEventListener('change', (e) => {
+            if (e.target.value) {
+                updateCalendarView(new Date(e.target.value));
+            }
+        });
+    }
+
+    // --- Render Today's Weather from static data (no API) ---
+    async function fetchAndRenderTodayWeather(location) {
+        const weatherContainer = document.getElementById('weather-container');
+        if (!weatherContainer) return;
+
+        weatherContainer.innerHTML = `<p class="text-gray-500">${(window.t && window.t.loadingWeather) || "Loading today's weather..."}</p>`;
+
+        // Static sample weather data (customize as needed)
+        const weatherData = {
+            main: { temp: 29.6 },
+            weather: [{ main: 'Clouds', description: 'scattered clouds', icon: '03d' }]
+        };
+
+        const temp = Math.round(weatherData.main.temp);
+        const description = weatherData.weather[0].description;
+        const iconUrl = `http://openweathermap.org/img/wn/${weatherData.weather[0].icon}@2x.png`;
+
+        const weatherHtml = `
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-lg font-semibold">${farmerData.location}</p>
+                    <p class="text-sm text-gray-600">${description}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-4xl font-bold">${temp}°C</p>
+                    <img src="${iconUrl}" alt="${description}" class="w-16 h-16 inline-block"/>
+                </div>
+            </div>
+        `;
+        weatherContainer.innerHTML = weatherHtml;
+    }
+    
+    // --- Render 4-Day Forecast from static data (no API) ---
+    async function fetchAndRenderForecast(location) {
+        const forecastContainer = document.getElementById('forecast-container');
+        if (!forecastContainer) return;
+
+        forecastContainer.innerHTML = `<p class="col-span-2 text-gray-500 text-center">${(window.t && window.t.loadingForecast) || "Loading 4-day forecast..."}</p>`;
+
+        // Static 4-day forecast sample (timestamps are today + n days)
+        const now = Date.now();
+        const dayMs = 24 * 60 * 60 * 1000;
+        const forecastData = [
+            { dt: Math.floor((now + 1 * dayMs) / 1000), main: { temp: 30 }, weather: [{ main: 'Clear', description: 'clear sky', icon: '01d' }] },
+            { dt: Math.floor((now + 2 * dayMs) / 1000), main: { temp: 28 }, weather: [{ main: 'Clouds', description: 'few clouds', icon: '02d' }] },
+            { dt: Math.floor((now + 3 * dayMs) / 1000), main: { temp: 27 }, weather: [{ main: 'Rain', description: 'light rain', icon: '10d' }] },
+            { dt: Math.floor((now + 4 * dayMs) / 1000), main: { temp: 31 }, weather: [{ main: 'Clear', description: 'sunny', icon: '01d' }] }
+        ];
+
+        // Use forecast for alerts
+        checkAndRenderAlerts(forecastData, farmerData);
+
+        let forecastHtml = '';
+        forecastData.forEach(day => {
+            const date = new Date(day.dt * 1000).toLocaleDateString();
+            const temp = Math.round(day.main.temp);
+            const description = day.weather[0].description;
+            const iconUrl = `http://openweathermap.org/img/wn/${day.weather[0].icon}@2x.png`;
+
+            forecastHtml += `
+                <div class="bg-gray-50 p-4 rounded-2xl text-center">
+                    <p>${date}</p>
+                    <img src="${iconUrl}" alt="${description}" class="w-12 h-12 mx-auto"/>
+                    <p class="text-3xl font-bold">${temp}°</p>
+                    <p>${description}</p>
+                </div>
+            `;
+        });
+        forecastContainer.innerHTML = forecastHtml;
+    }
+
+    // NEW FUNCTION: The core logic to check for weather-related alerts
+    function checkAndRenderAlerts(forecastData, farmerData) {
+        const latestFarmDetails = farmerData.farmDetails[farmerData.farmDetails.length - 1];
+        if (!latestFarmDetails || !latestFarmDetails.sowingDate || !farmerData.cropCalendar) return;
+
+        const sowingDate = new Date(latestFarmDetails.sowingDate);
+        const today = new Date();
+        const oneDay = 1000 * 60 * 60 * 24;
+        const daysPassed = Math.floor(Math.abs((today - sowingDate) / oneDay));
+
+        let alertMessage = null;
+
+        // A simple set of rules for common crops
+        const rules = {
+            'Rice': [
+                {
+                    conditions: (weather) => weather.main.temp > 35,
+                    stage: [30, 60], // Tillering to Flowering
+                    message: "⚠️ High temperatures forecasted during the flowering stage. This can reduce yield. Ensure proper irrigation."
+                },
+                {
+                    conditions: (weather) => weather.weather[0].main === 'Rain' && (weather.weather[0].description.includes('heavy') || weather.weather[0].description.includes('storm')),
+                    stage: [1, 20], // Seedling/Transplanting
+                    message: "🌧️ Heavy rain is expected in the coming days. Ensure proper field drainage to prevent waterlogging."
+                }
+            ],
+            'Wheat': [
+                 {
+                    conditions: (weather) => weather.weather[0].main === 'Rain' || weather.weather[0].main === 'Snow',
+                    stage: [70, 90], // Grain filling to Maturity
+                    message: "⚠️ Risk of unexpected precipitation. This could cause lodging and fungal diseases. Monitor your fields closely."
+                }
+            ],
+             'Cotton': [
+                {
+                    conditions: (weather) => weather.main.temp > 40,
+                    stage: [60, 100], // Flowering to boll development
+                    message: "🔥 High temperatures can cause shedding of squares and small bolls. Consider light irrigation during the hottest parts of the day."
+                }
+            ],
+            'Tomato': [
+                {
+                    conditions: (weather) => weather.weather[0].main === 'Rain' && (weather.weather[0].description.includes('heavy') || weather.weather[0].description.includes('storm')),
+                    stage: [45, 90], // Flowering to Fruiting
+                    message: "⚠️ Heavy rain is expected during the fruiting stage. This can lead to fruit cracking and disease. Ensure good drainage."
+                },
+                {
+                    conditions: (weather) => weather.main.temp > 35,
+                    stage: [40, 80], // Flowering to Fruit setting
+                    message: "🔥 High temperatures forecasted during flowering. This can cause flower drop and reduced fruit set. Consider covering or shading."
+                }
+            ]
+        };
+
+        const cropRules = rules[latestFarmDetails.mainCrop];
+        if (!cropRules) return; // No specific rules for this crop
+
+        const currentCropStageData = farmerData.cropCalendar.activities.find(a => 
+            daysPassed >= a.start_day && daysPassed <= a.end_day
+        );
+
+        if (!currentCropStageData) return; // Cannot find a matching stage
+
+        for (const rule of cropRules) {
+            if (daysPassed >= rule.stage[0] && daysPassed <= rule.stage[1]) {
+                for (const weather of forecastData) {
+                    if (rule.conditions(weather)) {
+                        alertMessage = rule.message;
+                        renderAlert(alertMessage, 'warning');
+                        return; // Stop after finding the first alert
+                    }
+                }
+            }
+        }
+    }
+
+    function renderAlert(message, type) {
+        const alertContainer = document.getElementById('alert-container');
+        if (!alertContainer) return;
+
+        let style = '';
+        if (type === 'warning') {
+            style = 'bg-red-100 border border-red-400 text-red-700';
+        } else {
+            style = 'bg-green-100 border border-green-400 text-green-700';
+        }
+
+        alertContainer.innerHTML = `
+            <div class="p-4 rounded-lg flex items-center ${style}">
+                <span class="material-icons mr-3">warning</span>
+                <p class="font-semibold">${message}</p>
+            </div>
+        `;
+    }
+
+    // --- Sidebar Toggle Logic ---
+    menuToggleBtn.addEventListener('click', () => {
+        leftSidebar.classList.toggle('-ml-64');
+    });
+    
+    function toggleRightSidebar() {
+        rightSidebar.classList.toggle('translate-x-full');
+        overlay.classList.toggle('hidden', rightSidebar.classList.contains('translate-x-full'));
+    }
+
+    profileToggleBtn.addEventListener('click', toggleRightSidebar);
+    overlay.addEventListener('click', () => {
+        if (!rightSidebar.classList.contains('translate-x-full')) toggleRightSidebar();
+    });
+    
+    initializeDashboard();
+});

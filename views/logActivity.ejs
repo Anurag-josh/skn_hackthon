@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= pageTitle %></title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+        }
+        .activity-icon.selected {
+            border-color: #22c55e; /* green-500 */
+            background-color: #f0fdf4; /* green-50 */
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+        }
+        .file-upload-area {
+            border: 2px dashed #d1d5db;
+            transition: border-color 0.3s, background-color 0.3s;
+        }
+        .file-upload-area:hover, .file-upload-area.dragover {
+            border-color: #22c55e;
+            background-color: #f0fdf4;
+        }
+        .file-upload-area input[type=file] {
+            position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; cursor: pointer;
+        }
+        #activity-form.hidden { display: none; }
+    </style>
+</head>
+
+<body>
+    <% const isEditMode = typeof activity !== 'undefined' && activity !== null; %>
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-10 border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-6 sm:px-8">
+            <div class="flex justify-between items-center h-16">
+                <a href="/" class="text-2xl font-bold text-green-600">Krishi Sakhi</a>
+                
+                <nav class="hidden md:flex items-center space-x-8">
+                    <a href="/" class="text-base font-medium text-gray-600 hover:text-green-600 transition-colors">Dashboard</a>
+                    <a href="/activity/history" class="text-base font-medium text-gray-600 hover:text-green-600 transition-colors">History</a>
+                    <!-- <a href="/profile" class="text-base font-medium text-gray-600 hover:text-green-600 transition-colors">Profile</a> -->
+                </nav>
+
+                <div class="md:hidden">
+                    <button class="p-2 rounded-md hover:bg-gray-100">
+                         <span class="material-icons text-gray-600">menu</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="py-10">
+        <div class="max-w-6xl mx-auto px-6 sm:px-8">
+
+            <div class="mb-10">
+                <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight"><%= pageTitle %></h1>
+                <p class="mt-2 text-lg text-gray-600">Log a new farm activity or update an existing one below.</p>
+            </div>
+
+            <section class="bg-white p-8 rounded-2xl shadow-lg mb-10">
+                <h2 class="text-2xl font-bold text-gray-800">Step 1: Choose Activity Type</h2>
+                <p class="mt-1 text-base text-gray-500 mb-8">Select the type of activity you want to log.</p>
+                <div id="activity-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-5">
+                    <% const types = ['SOWING', 'IRRIGATION', 'FERTILIZER', 'PESTICIDE', 'PEST_SIGHTING', 'HARVEST', 'EXPENSE']; %>
+                    <% const icons = { SOWING: 'sprout', IRRIGATION: 'watering-can', FERTILIZER: 'paper-bag-with-seeds', PESTICIDE: 'spray', PEST_SIGHTING: 'ladybird', HARVEST: 'tractor', EXPENSE: 'cash-in-hand' }; %>
+                    <% types.forEach(type => { %>
+                        <div data-type="<%= type %>" class="activity-icon flex flex-col items-center justify-center text-center p-4 rounded-xl border-2 border-gray-200 cursor-pointer transition-all duration-300 hover:shadow-md hover:border-green-400 <%= (isEditMode && activity.activityType === type) ? 'selected' : '' %>">
+                            <img src="https://img.icons8.com/fluency/96/<%= icons[type] %>.png" alt="<%= type %>" class="w-16 h-16 mb-2"/>
+                            <span class="text-sm font-semibold text-gray-700 capitalize"><%= type.replace('_', ' ').toLowerCase() %></span>
+                        </div>
+                    <% }) %>
+                </div>
+            </section>
+
+            <form id="activity-form" action="<%= isEditMode ? '/activity/' + activity._id + '/edit' : '/activity/log' %>" method="POST" enctype="multipart/form-data" class="<%= isEditMode ? '' : 'hidden' %> bg-white p-8 rounded-2xl shadow-lg">
+                <h2 class="text-2xl font-bold text-gray-800">Step 2: Fill in the Details</h2>
+                <p class="mt-1 text-base text-gray-500 mb-8">Provide more information for the selected activity.</p>
+                
+                <input type="hidden" id="activityTypeInput" name="activityType" value="<%= isEditMode ? activity.activityType : '' %>">
+    
+                <div class="space-y-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                        <div>
+                            <label for="activityDate" class="block text-sm font-medium text-gray-700 mb-2">Date of Activity</label>
+                            <input type="date" id="activityDate" name="activityDate" value="<%= isEditMode ? activity.activityDate.toISOString().split('T')[0] : today %>" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                        </div>
+                        
+                        <div></div>
+
+                        <div id="material-fields" class="hidden md:col-span-2">
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                                <div>
+                                    <label for="materialName" class="block text-sm font-medium text-gray-700 mb-2">Product Name</label>
+                                    <input type="text" id="materialName" name="materialName" placeholder="e.g., Urea, Tomato Seeds" value="<%= isEditMode ? activity.materialName : '' %>" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                                        <input type="number" step="0.1" id="quantity" name="quantity" placeholder="e.g., 5" value="<%= isEditMode ? activity.quantity : '' %>" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                    </div>
+                                    <div>
+                                        <label for="unit" class="block text-sm font-medium text-gray-700 mb-2">Unit</label>
+                                        <select id="unit" name="unit" class="w-full p-3 border border-gray-300 rounded-lg bg-white appearance-none focus:ring-2 focus:ring-green-500 h-[50px]">
+                                            <% const units = ['kg', 'g', 'L', 'mL', 'bags', 'hours', 'units']; %>
+                                            <% units.forEach(unit => { %>
+                                                <option value="<%= unit %>" <%= (isEditMode && activity.unit === unit) ? 'selected' : '' %>><%= unit %></option>
+                                            <% }) %>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="financial-fields" class="hidden md:col-span-2">
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                                <div>
+                                    <label for="cost" class="block text-sm font-medium text-gray-700 mb-2">Total Cost / Value (₹)</label>
+                                    <input type="number" step="0.01" id="cost" name="cost" placeholder="e.g., 1500.50" value="<%= isEditMode ? activity.cost : '' %>" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Upload Receipt (Optional)</label>
+                                    <% if (isEditMode && activity.receiptImageUrl) { %>
+                                        <img src="<%= activity.receiptImageUrl %>" alt="Current Receipt" class="h-16 w-16 object-cover rounded-md mb-2 border">
+                                    <% } %>
+                                    <div id="file-upload-area" class="file-upload-area relative flex items-center justify-center w-full p-4 rounded-lg text-center">
+                                        <input type="file" id="receiptImage" name="receiptImage" accept="image/*">
+                                        <div class="text-sm">
+                                            <p id="fileName" class="font-semibold text-green-600">Choose a file or drag it here</p>
+                                            <img id="imagePreview" src="" alt="Image Preview" class="hidden rounded-md mt-4 mx-auto max-h-32 border"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="description-field" class="mt-6">
+                        <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Notes / Description</label>
+                        <textarea id="description" name="description" rows="4" placeholder="Add any extra details, like weather conditions or specific observations..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"><%= isEditMode ? activity.description : '' %></textarea>
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end">
+                        <button type="submit" class="bg-green-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all duration-300 flex items-center gap-2 text-base">
+                            <span class="material-icons">save</span>
+                            <%= isEditMode ? 'Update Record' : 'Save Record' %>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script src="/js/logActivity.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('receiptImage');
+            const fileNameDisplay = document.getElementById('fileName');
+            const imagePreview = document.getElementById('imagePreview');
+            const fileUploadArea = document.getElementById('file-upload-area');
+
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    fileNameDisplay.textContent = file.name;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        imagePreview.src = e.target.result;
+                        imagePreview.classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                fileUploadArea.addEventListener(eventName, e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+            ['dragenter', 'dragover'].forEach(eventName => {
+                fileUploadArea.addEventListener(eventName, () => fileUploadArea.classList.add('dragover'), false);
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                fileUploadArea.addEventListener(eventName, () => fileUploadArea.classList.remove('dragover'), false);
+            });
+        });
+    </script>
+</body>
+</html>

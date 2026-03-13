@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmer Onboarding</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div id="onboarding-section" class="w-full max-w-lg mx-auto bg-white p-8 rounded-2xl shadow-lg text-center">
+        <!-- Onboarding steps will be injected by onboarding.js -->
+    </div>
+    
+    <!-- Voice Assistant UI Elements -->
+    <div id="voice-assistant-ui" class="fixed bottom-4 right-4 bg-green-600 text-white rounded-full p-4 cursor-pointer shadow-lg transition-all duration-300 transform hover:scale-110">
+        <svg id="mic-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+        </svg>
+        <svg id="stop-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+        </svg>
+    </div>
+    
+    <div id="voice-status" class="fixed bottom-20 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm hidden">
+        <span id="voice-status-text">Listening...</span>
+    </div>
+    
+    <!-- Audio Controls -->
+    <div id="audio-controls" class="fixed bottom-4 left-4 bg-gray-800 text-white rounded-lg p-2 flex gap-2 hidden">
+        <button id="play-btn" class="p-2 hover:bg-gray-700 rounded">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+            </svg>
+        </button>
+        <button id="pause-btn" class="p-2 hover:bg-gray-700 rounded">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+        </button>
+        <button id="stop-btn" class="p-2 hover:bg-gray-700 rounded">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+            </svg>
+        </button>
+    </div>
+    
+    <script>
+        // Pass farmerId from server to client-side JavaScript
+        window.farmerId = '<%= farmerId %>';
+    </script>
+    <script src="/js/onboarding.js"></script>
+    
+</body>
+</html>

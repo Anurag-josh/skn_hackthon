@@ -38,6 +38,7 @@ router.get('/api/crops', async (req, res) => {
             ];
             return res.json(fallbackCrops);
         }
+        // Return the result as json
         res.json(crops);
     } catch (error) {
         console.error("Error fetching crops:", error);
@@ -64,6 +65,7 @@ router.get('/api/crops', async (req, res) => {
             { crop_id: "arecanut_mangal_kerala", crop_name: "Arecanut", variety: "Mangala" },
             { crop_id: "nutmeg_viswa_kerala", crop_name: "Nutmeg", variety: "Viswashree" }
         ];
+        // Return fallback as json
         res.status(200).json(fallbackCrops);
     }
 });
@@ -100,7 +102,7 @@ router.post('/api/generate-calendar', async (req, res) => {
                 type: task.task_type
             };
         });
-
+        // events as json
         res.json(calendarEvents);
 
     } catch (error) {
@@ -110,5 +112,3 @@ router.post('/api/generate-calendar', async (req, res) => {
 });
 
 module.exports = router;
-
-
